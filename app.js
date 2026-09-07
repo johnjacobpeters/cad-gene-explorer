@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const ROOT = window.CAD;
-  if (!ROOT || !ROOT.datasets || !ROOT.datasets.length) { document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">data.js is missing — run build_explorer_data.py first.</p>'; return; }
+  if (!ROOT || !ROOT.datasets || !ROOT.datasets.length) { document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">data.js is missing. Run build_explorer_data.py first.</p>'; return; }
 
   // ── shared helpers ─────────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
@@ -11,7 +11,7 @@
   const fold = l => Math.pow(2, Math.abs(l));
   const fmtP = p => p < 1e-3 ? p.toExponential(1) : p.toFixed(3);
   const fmtX = l => { const f = fold(l); return f >= 10 ? f.toFixed(0) + '×' : f.toFixed(1) + '×'; };
-  const fmtN = v => isNaN(v) ? '—' : v.toFixed(1);
+  const fmtN = v => isNaN(v) ? '-' : v.toFixed(1);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const PLOT = { paper_bgcolor: '#171b2e', plot_bgcolor: '#171b2e', font: { color: '#e4e7f7', family: 'Inter,sans-serif' } };
   const CFG = { responsive: true, displayModeBar: false };
@@ -28,7 +28,7 @@
     DS = ds; EXPL_CUT = (ds.primary && ds.primary.cut) || 1.5; CONDS = ds.conditions; CMAP = {}; CONDS.forEach(c => CMAP[c.id] = c);
     GENES = ds.genes; NAMES = Object.keys(GENES).sort((a, b) => a.localeCompare(b)); LOWER = NAMES.map(n => n.toLowerCase());
     current = null; inp.value = '';
-    renderDsChips(); renderIntro(); renderQuick(); renderThemeChips(); renderQuiz(); renderPathways();
+    renderDsChips(); renderIntro(); renderQuick(); renderThemeChips(); renderPathways();
     $('gene-panel').classList.add('hidden'); $('gene-empty').classList.remove('hidden');
     $('gene-empty').innerHTML = 'Search for a gene above, click a chip, or pick a random one to get started.';
     $('theme-panel').classList.add('hidden');
@@ -59,10 +59,6 @@
   function renderQuick() {
     const box = $('quick-chips'); box.querySelectorAll('.chip').forEach(x => x.remove());
     (DS.quick || []).filter(g => GENES[g]).forEach(g => { const b = document.createElement('button'); b.className = 'chip'; b.textContent = g; b.dataset.g = g; b.addEventListener('click', () => pick(g)); box.appendChild(b); });
-  }
-  function renderQuiz() {
-    $('quiz').innerHTML = (DS.quiz || []).map((x, i) => `<div class="card quiz" id="quiz-${i}"><div class="q">${i + 1}. ${x.q}</div><button class="btn" data-i="${i}">reveal</button><div class="ans">${x.a}</div></div>`).join('') || '<p class="hint">No guided questions for this dataset yet — try the ones under the built-in datasets.</p>';
-    $('quiz').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { const c = $('quiz-' + b.dataset.i); c.classList.toggle('open'); b.textContent = c.classList.contains('open') ? 'hide' : 'reveal'; }));
   }
 
   // ── gene stats ─────────────────────────────────────────────────────────────
@@ -135,11 +131,11 @@
       if (sc === 'ns') badges.push('<span class="pill pill-ns">little change</span>');
     }
     if (S && Math.abs(s.lfcS) > EXPL_CUT) badges.push(`<span class="pill pill-new">${s.lfcS > 0 ? '↑' : '↓'} ${fmtX(s.lfcS)} in ${esc(S.numShort)} (1 sample)</span>`);
-    DS.sets.forEach(st => { if (st.genes.includes(n)) badges.push(`<span class="pill pill-purple">${esc(st.title.split(' — ')[0])}</span>`); });
+    DS.sets.forEach(st => { if (st.genes.includes(n)) badges.push(`<span class="pill pill-purple">${esc(st.title.split(': ')[0])}</span>`); });
     $('g-badges').innerHTML = badges.join(' ');
     $('g-sub').textContent = P.hasStats
       ? (s.de ? `${P.statsName} (${P.label}): log₂FC ${s.de.lfc > 0 ? '+' : ''}${s.de.lfc.toFixed(2)}, adjusted p = ${fmtP(s.de.padj)}, average expression ${s.de.bm.toFixed(0)}` : 'This gene had too few reads to be tested statistically.')
-      : `${P.label}: log₂FC ${s.lfcP > 0 ? '+' : ''}${s.lfcP.toFixed(2)} — descriptive only (one dish per condition, no statistical test).`;
+      : `${P.label}: log₂FC ${s.lfcP > 0 ? '+' : ''}${s.lfcP.toFixed(2)}, descriptive only (one dish per condition, no statistical test).`;
     $('g-cards').innerHTML = CONDS.map(c => { const k = NOREP() ? c.n : (s.g.cpm[c.id] || []).length; return `<div class="stat" style="border-top-color:${c.color}"><div class="v">${fmtN(s.m[c.id])}</div><div class="l">${esc(c.short)} · ${esc(UNIT())}<br><span style="text-transform:none;letter-spacing:0">${k} dish${k === 1 ? '' : 'es'}${NOREP() ? ' (est.)' : ''}</span></div></div>`; }).join('');
     $('g-cards').className = 'cond-cards ' + (CONDS.length <= 3 ? 'grid3' : 'grid5');
     renderGeneChart(s); $('g-verdict').innerHTML = verdict(s);
@@ -153,7 +149,7 @@
     const traces = [{ type: 'bar', x: CONDS.map((c, i) => i), y: CONDS.map(c => s.m[c.id]), marker: { color: CONDS.map(c => c.color), opacity: NOREP() ? .75 : .45 }, name: NOREP() ? 'group average' : 'average', hovertemplate: 'average %{y:.1f} ' + U + '<extra></extra>', width: .6 }];
     if (!NOREP()) traces.push({ type: 'scatter', mode: 'markers', x: xs, y: ys, text: txt, hoverinfo: 'text', marker: { color: cols, size: 12, line: { width: 2, color: '#0f1220' } }, name: 'each dish' });
     const note = $('chart-note'); if (note) note.innerHTML = NOREP()
-      ? 'Bars are <strong>group averages reconstructed</strong> from the published summary table — the individual dish values were not deposited, so no dots are shown.'
+      ? 'Bars are <strong>group averages reconstructed</strong> from the published summary table. The individual dish values were not deposited, so no dots are shown.'
       : 'Bars = average · dots = each individual dish (replicate)';
     Plotly.react('gene-chart', traces, Object.assign({}, PLOT, {
       xaxis: { tickvals: CONDS.map((c, i) => i), ticktext: CONDS.map(c => c.label), gridcolor: '#2a3052', range: [-0.6, CONDS.length - 0.4] },
@@ -166,7 +162,7 @@
     const den = s.m[P.den], num = s.m[P.num], nd = CMAP[P.den], nn = CMAP[P.num];
     if (P.hasStats) {
       if (s.de && s.de.padj < 0.05 && Math.abs(s.de.lfc) > 1) {
-        out.push(`<div class="verdict" style="border-color:${s.de.lfc > 0 ? '#e05252' : '#4a90d9'}"><strong>This gene changed significantly.</strong> It is about <strong>${fmtX(s.de.lfc)} ${s.de.lfc > 0 ? 'higher' : 'lower'}</strong> in ${esc(nn.label)} than in ${esc(nd.label)} (${fmtN(den)} → ${fmtN(num)} ${UNIT()}). Adjusted p = ${fmtP(s.de.padj)} from ${nd.n} vs ${nn.n} dishes — very unlikely to be luck.${P.statsNote ? ' <span class="hint">' + esc(P.statsNote) + '</span>' : ''}</div>`);
+        out.push(`<div class="verdict" style="border-color:${s.de.lfc > 0 ? '#e05252' : '#4a90d9'}"><strong>This gene changed significantly.</strong> It is about <strong>${fmtX(s.de.lfc)} ${s.de.lfc > 0 ? 'higher' : 'lower'}</strong> in ${esc(nn.label)} than in ${esc(nd.label)} (${fmtN(den)} → ${fmtN(num)} ${UNIT()}). Adjusted p = ${fmtP(s.de.padj)} from ${nd.n} vs ${nn.n} dishes, so this is very unlikely to be luck.${P.statsNote ? ' <span class="hint">' + esc(P.statsNote) + '</span>' : ''}</div>`);
       } else if (s.de) {
         out.push(`<div class="verdict" style="border-color:#8a90b3"><strong>No significant change.</strong> ${esc(nd.label)} ${fmtN(den)} vs ${esc(nn.label)} ${fmtN(num)} ${UNIT()} (log₂FC ${s.de.lfc > 0 ? '+' : ''}${s.de.lfc.toFixed(2)}, adjusted p = ${fmtP(s.de.padj)}). Any difference is within the natural dish-to-dish wobble, or smaller than the 2× cutoff.</div>`);
       } else {
@@ -174,16 +170,16 @@
       }
     } else {
       const big = Math.abs(s.lfcP) > EXPL_CUT, hi = Math.max(den, num);
-      if (big) out.push(`<div class="verdict" style="border-color:${s.lfcP > 0 ? '#e05252' : '#4a90d9'}"><strong>This gene is about ${fmtX(s.lfcP)} ${s.lfcP > 0 ? 'higher' : 'lower'} in ${esc(nn.label)}</strong> than in ${esc(nd.label)} (${fmtN(den)} → ${fmtN(num)} ${UNIT()}). With <strong>one dish per condition there is no statistical test</strong> — this is an observation to follow up, not a proven result.${hi < 10 ? ' And it is weakly expressed, so the ratio is noisy: treat with extra caution.' : ' It is solidly expressed, which makes the ratio more trustworthy.'}</div>`);
-      else out.push(`<div class="verdict" style="border-color:#8a90b3"><strong>Little change.</strong> ${esc(nd.label)} ${fmtN(den)} vs ${esc(nn.label)} ${fmtN(num)} ${UNIT()} (log₂FC ${s.lfcP > 0 ? '+' : ''}${s.lfcP.toFixed(2)}) — below the ${fold(EXPL_CUT).toFixed(1)}× line we use for "worth noticing" when there are no replicates.</div>`);
+      if (big) out.push(`<div class="verdict" style="border-color:${s.lfcP > 0 ? '#e05252' : '#4a90d9'}"><strong>This gene is about ${fmtX(s.lfcP)} ${s.lfcP > 0 ? 'higher' : 'lower'} in ${esc(nn.label)}</strong> than in ${esc(nd.label)} (${fmtN(den)} → ${fmtN(num)} ${UNIT()}). With <strong>one dish per condition there is no statistical test</strong>, so this is an observation to follow up, not a proven result.${hi < 10 ? ' And it is weakly expressed, so the ratio is noisy: treat with extra caution.' : ' It is solidly expressed, which makes the ratio more trustworthy.'}</div>`);
+      else out.push(`<div class="verdict" style="border-color:#8a90b3"><strong>Little change.</strong> ${esc(nd.label)} ${fmtN(den)} vs ${esc(nn.label)} ${fmtN(num)} ${UNIT()} (log₂FC ${s.lfcP > 0 ? '+' : ''}${s.lfcP.toFixed(2)}), below the ${fold(EXPL_CUT).toFixed(1)}× line we use for "worth noticing" when there are no replicates.</div>`);
     }
     if (S) {
       const sd = s.m[S.den], sn = s.m[S.num], big = Math.abs(s.lfcS) > EXPL_CUT, oldBig = Math.abs(s.lfcP) > EXPL_CUT;
-      if (big) out.push(`<div class="verdict" style="border-color:#00b894"><strong>${esc(CMAP[S.num].label)} looks different from ${esc(CMAP[S.den].label)} here</strong> — about ${fmtX(s.lfcS)} ${s.lfcS > 0 ? 'higher' : 'lower'} (${fmtN(sd)} → ${fmtN(sn)} ${UNIT()}). ${esc(S.note)}</div>`);
+      if (big) out.push(`<div class="verdict" style="border-color:#00b894"><strong>${esc(CMAP[S.num].label)} looks different from ${esc(CMAP[S.den].label)} here</strong>, about ${fmtX(s.lfcS)} ${s.lfcS > 0 ? 'higher' : 'lower'} (${fmtN(sd)} → ${fmtN(sn)} ${UNIT()}). ${esc(S.note)}</div>`);
       else out.push(`<div class="verdict" style="border-color:#00b894"><strong>${esc(CMAP[S.num].label)} looks about the same as ${esc(CMAP[S.den].label)}</strong> for this gene (${fmtN(sd)} vs ${fmtN(sn)} ${UNIT()}).</div>`);
       if (oldBig && !big) out.push(`<div class="verdict" style="border-color:#f5c842"><strong>The key contrast:</strong> ${esc(nn.label)} moved this gene a lot, ${esc(CMAP[S.num].label)} barely touched it. ${esc(S.contrastNote || '')}</div>`);
-      else if (oldBig && big && Math.sign(s.lfcP) === Math.sign(s.lfcS)) out.push(`<div class="verdict" style="border-color:#f5c842"><strong>Both moved this gene the same way.</strong> Because they were sequenced in different batches, agreement like this is <em>more</em> believable — it points to a shared effect.</div>`);
-      else if (!oldBig && big) out.push(`<div class="verdict" style="border-color:#f5c842"><strong>Only ${esc(CMAP[S.num].label)} moved this gene.</strong> Interesting — but with one sample in a separate batch, this is exactly the kind of change that could also be a batch effect. The way to find out: repeat with replicates.</div>`);
+      else if (oldBig && big && Math.sign(s.lfcP) === Math.sign(s.lfcS)) out.push(`<div class="verdict" style="border-color:#f5c842"><strong>Both moved this gene the same way.</strong> Because they were sequenced in different batches, agreement like this is <em>more</em> believable, since it points to a shared effect.</div>`);
+      else if (!oldBig && big) out.push(`<div class="verdict" style="border-color:#f5c842"><strong>Only ${esc(CMAP[S.num].label)} moved this gene.</strong> Interesting, but with one sample in a separate batch, this is exactly the kind of change that could also be a batch effect. The way to find out: repeat with replicates.</div>`);
     }
     return out.join('');
   }
@@ -199,11 +195,11 @@
     });
     PRIM = { x, y, n, col };
     if (P.hasStats) {
-      $('primary-title').textContent = 'Volcano plot — every gene at once';
+      $('primary-title').textContent = 'Volcano plot: every gene at once';
       $('primary-desc').innerHTML = `Each dot is one gene. <strong style="color:var(--text)">Left/right</strong> = how much it changed (${esc(P.label)}, log₂ fold change). <strong style="color:var(--text)">Up</strong> = how confident we are it's real (−log₁₀ adjusted p-value). The most trustworthy hits live in the top corners. <strong style="color:var(--gold)">Click any dot</strong> to load that gene.`;
       $('primary-legend').innerHTML = `Red = significantly up in ${esc(P.numShort)} · Blue = significantly down · Grey = no significant change · Dashed line = p<sub>adj</sub> 0.05`;
     } else {
-      $('primary-title').textContent = 'MA plot — every gene at once (no p-values with n=1)';
+      $('primary-title').textContent = 'MA plot: every gene at once (no p-values with n=1)';
       $('primary-desc').innerHTML = `Each dot is one gene. <strong style="color:var(--text)">Up/down</strong> = how much it changed (${esc(P.label)}, log₂ fold change). <strong style="color:var(--text)">Left/right</strong> = how strongly it's expressed overall. With one dish per condition there are no p-values, so trust the dots on the <em>right</em> (well-measured) more than the ones on the left. <strong style="color:var(--gold)">Click any dot</strong> to load that gene.`;
       $('primary-legend').innerHTML = `Red = more than ${fold(EXPL_CUT).toFixed(1)}× higher in ${esc(P.numShort)} · Blue = more than ${fold(EXPL_CUT).toFixed(1)}× lower · Grey = smaller change`;
     }
@@ -262,7 +258,7 @@
 
   // ── themes ─────────────────────────────────────────────────────────────────
   function renderThemeChips() {
-    $('theme-chips').innerHTML = DS.sets.map((s, i) => `<button class="chip theme" data-i="${i}">${esc(s.title.split(' — ')[0])}</button>`).join('');
+    $('theme-chips').innerHTML = DS.sets.map((s, i) => `<button class="chip theme" data-i="${i}">${esc(s.title.split(': ')[0])}</button>`).join('');
     $('theme-chips').querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { $('theme-chips').querySelectorAll('.chip').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderTheme(DS.sets[+b.dataset.i]); }));
   }
   function renderTheme(set) {
@@ -310,7 +306,7 @@
   function drawEnr() {
     const list = (DS.enrich && DS.enrich[enrDir]) || [], box = $('enr-box');
     if (!list.length) {
-      box.innerHTML = '<p class="hint" style="padding:14px">No pathway came out significant in this direction. With few genes (or few replicates) that is common — it means "not enough evidence", not "nothing happened".</p>';
+      box.innerHTML = '<p class="hint" style="padding:14px">No pathway came out significant in this direction. With few genes (or few replicates) that is common. It means "not enough evidence", not "nothing happened".</p>';
       return;
     }
     const color = enrDir === 'up' ? '#e05252' : '#4a90d9';
@@ -385,7 +381,7 @@
 
   // ── cross-check an uploaded dataset against the published study ────────────
   const LANDMARKS = [
-    ['Id3', 'blocks differentiation — the classic hit'],
+    ['Id3', 'blocks differentiation, the classic hit'],
     ['Id2', 'blocks differentiation'],
     ['Id1', 'blocks differentiation'],
     ['Dkk1', 'Wnt inhibitor'],
@@ -399,8 +395,8 @@
     ['Gap43', 'axon growth'],
     ['Pcp4', 'neuronal calcium signalling'],
     ['Thy1', 'neuronal surface protein'],
-    ['Gapdh', 'housekeeping — should barely move'],
-    ['Actb', 'housekeeping — should barely move'],
+    ['Gapdh', 'housekeeping, should barely move'],
+    ['Actb', 'housekeeping, should barely move'],
   ];
 
   // gene -> {lfc, padj, expr} for any dataset, keyed by UPPERCASE symbol
@@ -421,7 +417,7 @@
     for (let i = 0; i < n; i++) { const dx = x[i] - mx, dy = y[i] - my; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; }
     return (sxx > 0 && syy > 0) ? sxy / Math.sqrt(sxx * syy) : NaN;
   }
-  // P(X >= k) for the hypergeometric — how surprising is an overlap of k?
+  // P(X >= k) for the hypergeometric: how surprising is an overlap of k?
   function hyperSF(k, N, K, n) {
     const lg = lgamma, lc = (a, b) => lg(a + 1) - lg(b + 1) - lg(a - b + 1);
     let p = 0; const top = Math.min(K, n);
@@ -473,17 +469,17 @@
       $('cc-caveat').innerHTML = 'Only ' + ((cc && cc.n) || 0) + ' of your genes matched the published mouse dataset by name, which is too few to compare. This usually means a different organism, or gene IDs (like ENSMUSG…) instead of gene symbols.';
       $('cc-markers').innerHTML = ''; $('cc-verdict').innerHTML = ''; Plotly.purge('cc-plot'); return;
     }
-    const pct = v => isNaN(v) ? '—' : (100 * v).toFixed(0) + '%';
+    const pct = v => isNaN(v) ? '-' : (100 * v).toFixed(0) + '%';
     $('cc-caveat').innerHTML = DS.simulated
-      ? '<strong>⚠ This file is the simulated practice dataset.</strong> It was generated <em>from</em> the published study\'s own numbers, so it will match almost perfectly by construction. That is circular — it shows the comparison working, not a real replication. Upload genuine data to get a meaningful answer.'
+      ? '<strong>⚠ This file is the simulated practice dataset.</strong> It was generated <em>from</em> the published study\'s own numbers, so it will match almost perfectly by construction. That is circular: it shows the comparison working, not a real replication. Upload genuine data to get a meaningful answer.'
       : 'Matched <strong>' + cc.n.toLocaleString() + '</strong> genes by name against the published study. '
-        + 'Different experiments, cells and sequencing runs — so agreement here is meaningful, and disagreement on weakly-expressed genes is normal.';
+        + 'Different experiments, cells and sequencing runs, so agreement here is meaningful, and disagreement on weakly-expressed genes is normal.';
     $('cc-stats').innerHTML = [
-      ['color:var(--gold)', isNaN(cc.rSig) ? (isNaN(cc.rAll) ? '—' : cc.rAll.toFixed(2)) : cc.rSig.toFixed(2),
+      ['color:var(--gold)', isNaN(cc.rSig) ? (isNaN(cc.rAll) ? '-' : cc.rAll.toFixed(2)) : cc.rSig.toFixed(2),
        isNaN(cc.rSig) ? 'correlation (all genes)' : 'correlation on their strong genes'],
       ['color:var(--green)', pct(cc.dirSig), 'same direction<br>on their significant genes'],
       ['color:var(--blue)', pct(cc.agreeMoved), 'same direction<br>on genes that moved in both'],
-      ['color:var(--purple)', isNaN(cc.enrich) ? '—' : cc.enrich.toFixed(1) + '×', 'top-gene overlap<br>vs chance'],
+      ['color:var(--purple)', isNaN(cc.enrich) ? '-' : cc.enrich.toFixed(1) + '×', 'top-gene overlap<br>vs chance'],
     ].map(([c, v, l]) => '<div class="stat"><div class="v" style="' + c + '">' + v + '</div><div class="l">' + l + '</div></div>').join('');
 
     // scatter
@@ -506,7 +502,7 @@
       }), CFG);
     if (!$('cc-plot').__wired) { $('cc-plot').on('plotly_click', e => { const p = e.points && e.points[0]; if (p && p.customdata) showGene(p.customdata, true); }); $('cc-plot').__wired = 1; }
     $('cc-quad').innerHTML = 'Gold dots are the ' + cc.points.filter(r => r.pubP != null && r.pubP < 0.05 && Math.abs(r.pub) > 1).length
-      + ' genes the published study calls significant — those are the ones worth judging agreement on. '
+      + ' genes the published study calls significant. Those are the ones worth judging agreement on. '
       + 'Of the ' + cc.moved.toLocaleString() + ' genes that moved appreciably in <em>both</em> experiments, <strong>' + pct(cc.agreeMoved) + '</strong> moved the same way.';
 
     // landmark table
@@ -536,11 +532,11 @@
       colr = '#00b894'; head = 'Strong agreement with the published study.';
       body = 'Your fold changes track theirs closely (correlation ' + r.toFixed(2) + ', ' + pct(d) + ' the same direction on their significant genes), and your top-changing genes overlap theirs about ' + cc.enrich.toFixed(0) + '× more than chance would give. Two independent experiments finding the same thing is far stronger evidence than either alone.';
     } else if (r >= 0.25 || d >= 0.65) {
-      colr = '#f5c842'; head = 'Moderate agreement — the broad story matches, the details are noisy.';
+      colr = '#f5c842'; head = 'Moderate agreement: the broad story matches, the details are noisy.';
       body = 'Correlation is ' + r.toFixed(2) + ' with ' + pct(d) + ' directional agreement on their significant genes, and your top genes overlap theirs ' + cc.enrich.toFixed(1) + '× more than chance. That pattern usually means your experiment is measuring the same biology but with fewer replicates or less depth, so only the largest changes come through clearly. Trust your strongest hits; treat the absence of a gene as "not enough evidence" rather than "no change".';
     } else {
       colr = '#8a90b3'; head = 'Little agreement with this particular study.';
-      body = 'Correlation is ' + (isNaN(r) ? 'not estimable' : r.toFixed(2)) + ' and directional agreement is ' + pct(d) + ', close to a coin flip. That is entirely expected if your experiment asks a different question — a different treatment, cell type or timepoint. It only counts as a problem if you were trying to reproduce this specific differentiation experiment.';
+      body = 'Correlation is ' + (isNaN(r) ? 'not estimable' : r.toFixed(2)) + ' and directional agreement is ' + pct(d) + ', close to a coin flip. That is entirely expected if your experiment asks a different question: a different treatment, cell type or timepoint. It only counts as a problem if you were trying to reproduce this specific differentiation experiment.';
     }
     $('cc-verdict').innerHTML = '<div class="verdict" style="border-color:' + colr + '"><strong>' + head + '</strong> ' + body + '</div>';
   }
@@ -580,17 +576,27 @@
     });
     return { samples, genes, hasBiotype: biotypeCol >= 0, isCpmCols };
   }
+  // Group A is the starting point, group B is what it is compared against, so every
+  // fold change reads as B relative to A. Names that mean "before the change" go to A.
+  const STARTS = /^(und|undiff|undifferentiated|ctrl|control|untreated|baseline|day0|d0|t0)$/;
+  const ENDS = /^(dif|diff|differentiated|treated|treatment)$/;
+  const LONG = { und: 'Undifferentiated', undiff: 'Undifferentiated', undifferentiated: 'Undifferentiated',
+                 dif: 'Differentiated', diff: 'Differentiated', differentiated: 'Differentiated' };
   function guessGroups(samples) {
     const base = s => s.name.replace(/[-_ ]?(rep|r|s|sample)?\d+$/i, '').replace(/\d+$/, '').toLowerCase();
-    const bases = samples.map(base), uniq = Array.from(new Set(bases));
-    if (uniq.length === 2) return { groups: bases.map(b => b === uniq[0] ? 'A' : 'B'), names: [uniq[0] || 'Group A', uniq[1] || 'Group B'] };
+    const bases = samples.map(base); let uniq = Array.from(new Set(bases));
+    if (uniq.length === 2) {
+      if (ENDS.test(uniq[0]) && STARTS.test(uniq[1])) uniq = [uniq[1], uniq[0]];
+      return { groups: bases.map(b => b === uniq[0] ? 'A' : 'B'),
+               names: [LONG[uniq[0]] || uniq[0] || 'Undifferentiated', LONG[uniq[1]] || uniq[1] || 'Differentiated'] };
+    }
     const half = Math.ceil(samples.length / 2);
-    return { groups: samples.map((s, i) => i < half ? 'A' : 'B'), names: ['Group A', 'Group B'] };
+    return { groups: samples.map((s, i) => i < half ? 'A' : 'B'), names: ['Undifferentiated', 'Differentiated'] };
   }
   function renderUpSamples() {
     const g = guessGroups(UP.samples);
     $('up-nameA').value = cap(g.names[0]); $('up-nameB').value = cap(g.names[1]);
-    $('up-samples').innerHTML = UP.samples.map((s, i) => `<tr><td class="mono">${esc(s.name)}</td><td class="mono hint">${fmtTotal(s.total)}</td><td><select class="btn up-grp" data-i="${i}" style="padding:4px 8px"><option value="A" ${g.groups[i] === 'A' ? 'selected' : ''}>A · control</option><option value="B" ${g.groups[i] === 'B' ? 'selected' : ''}>B · treatment</option><option value="X">ignore</option></select></td></tr>`).join('');
+    $('up-samples').innerHTML = UP.samples.map((s, i) => `<tr><td class="mono">${esc(s.name)}</td><td class="mono hint">${fmtTotal(s.total)}</td><td><select class="btn up-grp" data-i="${i}" style="padding:4px 8px"><option value="A" ${g.groups[i] === 'A' ? 'selected' : ''}>A · undifferentiated (starting point)</option><option value="B" ${g.groups[i] === 'B' ? 'selected' : ''}>B · differentiated (compared against A)</option><option value="X">ignore</option></select></td></tr>`).join('');
     $('up-run').disabled = false;
   }
   const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
@@ -617,7 +623,7 @@
     const grp = Array.from(document.querySelectorAll('.up-grp')).map(s => s.value);
     const A = [], B = []; grp.forEach((g, i) => { if (g === 'A') A.push(i); else if (g === 'B') B.push(i); });
     if (!A.length || !B.length) throw new Error('Assign at least one sample to each group.');
-    const nameA = $('up-nameA').value.trim() || 'Group A', nameB = $('up-nameB').value.trim() || 'Group B';
+    const nameA = $('up-nameA').value.trim() || 'Undifferentiated', nameB = $('up-nameB').value.trim() || 'Differentiated';
     const isCpm = $('up-iscpm').checked, pcOnly = $('up-pconly').checked && UP.hasBiotype;
     const scale = UP.samples.map(s => isCpm ? 1 : (s.total > 0 ? 1e6 / s.total : 0));
     // per gene CPM per group, dedupe names by keeping highest total
@@ -629,7 +635,7 @@
       const tot = a.concat(b).reduce((x, y) => x + y, 0);
       if (!byName[g.name] || byName[g.name].tot < tot) byName[g.name] = { a, b, tot };
     });
-    const names = Object.keys(byName); if (names.length < 50) throw new Error('Fewer than 50 expressed genes found — is the first column the gene name and the others numeric?');
+    const names = Object.keys(byName); if (names.length < 50) throw new Error('Fewer than 50 expressed genes found. Is the first column the gene name and the others numeric?');
     const hasStats = A.length >= 2 && B.length >= 2;
     const genes = {}, pvals = [];
     names.forEach(n => { const r = byName[n]; genes[n] = { cpm: { A: r.a, B: r.b } }; if (hasStats) { const p = welch(r.a.map(v => Math.log2(v + 1)), r.b.map(v => Math.log2(v + 1))); pvals.push([n, p, lfc(mean(r.b), mean(r.a)), mean(r.a.concat(r.b))]); } });
@@ -641,26 +647,20 @@
     const nUp = ranked.filter(r => r.sig && r.l > 0).length, nDn = ranked.filter(r => r.sig && r.l < 0).length;
     const sets = [{ title: `Top genes up in ${nameB}`, desc: `The 25 most-increased well-expressed genes (${hasStats ? 'significant, ' : ''}average CPM ≥ 20).`, genes: topUp },
                   { title: `Top genes down in ${nameB}`, desc: `The 25 most-decreased well-expressed genes.`, genes: topDn }];
-    const hk = HK.filter(h => genes[h]); if (hk.length) sets.push({ title: 'Housekeeping genes — a built-in health check', desc: 'Genes every cell needs all the time. If these move a lot, either the cells are in serious trouble or something technical went wrong.', genes: hk });
+    const hk = HK.filter(h => genes[h]); if (hk.length) sets.push({ title: 'Housekeeping genes: a built-in health check', desc: 'Genes every cell needs all the time. If these move a lot, either the cells are in serious trouble or something technical went wrong.', genes: hk });
     const ds = {
       id: 'upload', simulated: /SIMULATED/i.test(UP.fname || ''),
       chipLabel: '📄 ' + (UP.fname.length > 22 ? UP.fname.slice(0, 20) + '…' : UP.fname), title: 'Your data: ' + nameB + ' vs ' + nameA,
       tagline: `${UP.fname} · ${UP.samples.length} samples loaded · ${names.length.toLocaleString()} expressed genes · analysed entirely in your browser`,
-      intro: `<p><strong style="color:var(--text)">${esc(nameA)}</strong> (${A.length} dish${A.length === 1 ? '' : 'es'}) is the baseline; <strong style="color:var(--text)">${esc(nameB)}</strong> (${B.length} dish${B.length === 1 ? '' : 'es'}) is the condition. ${isCpm ? 'Values were used as CPM as provided.' : 'Raw counts were rescaled to counts-per-million.'} ${pcOnly ? 'Only protein-coding genes were kept.' : ''} ${hasStats ? `Because both groups have replicates, each gene got a Welch t-test on log₂(CPM+1) with Benjamini–Hochberg correction — <em>a classroom approximation of DESeq2, fine for exploring, not for publishing.</em>` : `<strong>At least one group has a single dish, so no statistics were possible</strong> — fold changes are descriptive only.`}</p>`,
-      conditions: [{ id: 'A', label: nameA, short: nameA, color: '#4a90d9', n: A.length, desc: 'Baseline / control group' }, { id: 'B', label: nameB, short: nameB, color: '#e05252', n: B.length, desc: 'Treatment / condition group' }],
+      intro: `<p><strong style="color:var(--text)">${esc(nameA)}</strong> (${A.length} dish${A.length === 1 ? '' : 'es'}) is the starting point; <strong style="color:var(--text)">${esc(nameB)}</strong> (${B.length} dish${B.length === 1 ? '' : 'es'}) is what it is compared against, so every fold change below reads as ${esc(nameB)} relative to ${esc(nameA)}. ${isCpm ? 'Values were used as CPM as provided.' : 'Raw counts were rescaled to counts-per-million.'} ${pcOnly ? 'Only protein-coding genes were kept.' : ''} ${hasStats ? `Because both groups have replicates, each gene got a Welch t-test on log₂(CPM+1) with Benjamini–Hochberg correction. <em>This is a classroom approximation of DESeq2, fine for exploring, not for publishing.</em>` : `<strong>At least one group has a single dish, so no statistics were possible</strong>, so fold changes are descriptive only.`}</p>`,
+      conditions: [{ id: 'A', label: nameA, short: nameA, color: '#4a90d9', n: A.length, desc: 'Group A: the starting point' }, { id: 'B', label: nameB, short: nameB, color: '#e05252', n: B.length, desc: 'Group B: compared against Group A' }],
       primary: { num: 'B', den: 'A', numShort: nameB, denShort: nameA, label: `${nameB} vs ${nameA}`, hasStats, statsName: 'Welch t-test', statsNote: hasStats ? '(t-test approximation, not DESeq2)' : '' },
       secondary: null, genes, sets, top: { up: topUp, down: topDn },
       summary: { nGenes: names.length, nUp, nDn, upLabel: hasStats ? `genes significantly UP in ${nameB}` : `genes > ${fold(EXPL_CUT).toFixed(1)}× higher in ${nameB}`, dnLabel: hasStats ? `genes significantly DOWN in ${nameB}` : `genes > ${fold(EXPL_CUT).toFixed(1)}× lower in ${nameB}` },
       quick: topUp.slice(0, 4).concat(topDn.slice(0, 4)),
-      quiz: [
-        { q: `Open the theme <b>"Top genes up in ${esc(nameB)}"</b>. Do the genes have anything in common? (Search a couple of them online.)`, a: 'Genes that move together often belong to the same biological program — cell division, stress response, a cell-type identity. If several top hits share a story, that story is probably real; if they look random, the changes may be noise.' },
-        { q: 'Look at the <b>housekeeping</b> theme (if present). Are those genes flat? What would it mean if they weren\'t?', a: 'They should be roughly flat. If housekeeping genes shift a lot, either the cells are globally stressed/dying, or something technical differs between the groups (depth, quality, batch).' },
-        { q: hasStats ? 'On the volcano plot, are there dots that are far left/right but low down? Why aren\'t they "significant"?' : 'On the MA plot, look at the far left. Why should you distrust big fold changes there?', a: hasStats ? 'A big fold change with a large p-value means the dishes disagreed with each other — the average moved, but the replicates were inconsistent, so we can\'t rule out luck. Replicates are what turn a big change into a believable one.' : 'Genes on the left are barely expressed (a handful of reads). Going from 2 reads to 20 is a "10× change" but is mostly counting noise. Fold changes are only trustworthy when the gene is solidly expressed.' },
-        { q: `How many dishes are in each group here, and what does that allow (or not allow) you to conclude?`, a: `${nameA}: ${A.length}, ${nameB}: ${B.length}. ${hasStats ? 'With at least two per group you can estimate wobble and compute p-values — though two is the bare minimum, and three or more is much better.' : 'With a single dish in a group there is no wobble estimate, so no p-values: every difference is a hypothesis to test with replicates, not a result.'}` },
-      ],
     };
     const idx = DATASETS.findIndex(d => d.id === 'upload'); if (idx >= 0) DATASETS[idx] = ds; else DATASETS.push(ds);
-    $('up-export').disabled = false; $('up-status').innerHTML += ` <strong style="color:var(--green)">Analysis done — ${nUp} up, ${nDn} down.</strong> Scroll up: the explorer now shows your data.`;
+    $('up-export').disabled = false; $('up-status').innerHTML += ` <strong style="color:var(--green)">Analysis done: ${nUp} up, ${nDn} down.</strong> Scroll up: the explorer now shows your data.`;
     activate(ds); $('datasets').scrollIntoView({ behavior: 'smooth' });
   }
   $('up-export').addEventListener('click', () => {

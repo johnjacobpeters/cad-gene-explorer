@@ -4,20 +4,20 @@ An interactive, student-facing website for exploring RNA-seq data from CAD (neur
 mouse cells, plus the ability for students to load and analyse **their own** data in the
 browser.
 
-Everything is static — no server, database or build step.
+Everything is static: no server, database or build step.
 
 ```
 cad-explorer/
-  index.html                        — the page
-  style.css                         — styling
-  app.js                            — interactivity (multi-dataset engine + upload analysis)
-  data.js                           — built-in gene data (generated, ~2.0 MB)
-  example_undiff_vs_diff.csv        — real example file for the upload tool
-  example_practice_SIMULATED.csv    — simulated replicates for practising the statistics
-  GSE291553_Diff_v_Undiff2.xlsx     — published data downloaded from GEO (build input)
-  enrichment.json                   — GO/KEGG + STRING results (generated)
-  build_explorer_data.py            — regenerates data.js and the example files
-  enrich_explorer.py                — regenerates enrichment.json (Enrichr + STRING APIs)
+  index.html                        - the page
+  style.css                         - styling
+  app.js                            - interactivity (multi-dataset engine + upload analysis)
+  data.js                           - built-in gene data (generated, ~2.0 MB)
+  example_undiff_vs_diff.csv        - real example file for the upload tool
+  example_practice_SIMULATED.csv    - simulated replicates for practising the statistics
+  GSE291553_Diff_v_Undiff2.xlsx     - published data downloaded from GEO (build input)
+  enrichment.json                   - GO/KEGG + STRING results (generated)
+  build_explorer_data.py            - regenerates data.js and the example files
+  enrich_explorer.py                - regenerates enrichment.json (Enrichr + STRING APIs)
 ```
 
 ## The datasets
@@ -25,15 +25,15 @@ cad-explorer/
 | # | Dataset | Design | Statistics | Plot |
 |---|---|---|---|---|
 | ① **default** | This lab: undifferentiated vs differentiated | 1 dish each | none possible | MA plot |
-| ② | **Cevallos et al. 2025** — same experiment, published | 3 dishes each | DESeq2 (authors') | Volcano |
+| ② | **Cevallos et al. 2025**, same experiment, published | 3 dishes each | DESeq2 (authors') | Volcano |
 | ③ | Whatever the student uploads | their choice | Welch t-test + BH (if replicates) | Volcano or MA |
 
-Students switch datasets with the chips at the top; the whole page adapts — plot type,
-themes, wording, guided questions.
+Students switch datasets with the chips at the top; the whole page adapts: plot type,
+themes, wording.
 
 The pairing is the pedagogical core: dataset ① has **no replicates and no p-values**, and
 dataset ② is an **independent published study of the same experiment that does**. Several
-questions ask students to check a finding in ① against ②. The headline case is `Id3`
+themes invite students to check a finding in ① against ②. The headline case is `Id3`
 (an inhibitor of differentiation): down ~11× in ①, down ~288× at p ≈ 4e-32 in ②. Replication
 across labs is presented as stronger evidence than any single p-value.
 
@@ -57,13 +57,13 @@ The **Pathways** section asks "what *kind* of biology changed?" rather than look
 one at a time. Bars are GO Biological Process, KEGG, MSigDB Hallmark and WikiPathways terms
 from **Enrichr** (via `gseapy`); clicking a term reveals the genes driving it, and clicking a
 gene opens it in the explorer. Dataset ② additionally shows a **STRING** protein-interaction
-network (87 proteins, 205 interactions, confidence ≥ 0.4) of the strongest movers — it forms
+network (87 proteins, 205 interactions, confidence ≥ 0.4) of the strongest movers, and it forms
 an unmistakable DNA-replication/cell-cycle module (hubs Cdc45, Mcm4/5/10, Orc1, Cdc6, Rrm2).
 
 Gene selection differs by dataset, and this matters:
 
 - Dataset ① (n=1) has no significance test, so it uses the **top 200 genes each direction by
-  fold change**. Thresholding at 2× leaves only 61 genes — too few to detect a programme.
+  fold change**. Thresholding at 2× leaves only 61 genes, too few to detect a programme.
 - Dataset ② uses **all 1,150 significant up / 343 down genes**. An earlier attempt using the
   top 250 by fold change found almost nothing in the up direction, because ranking by fold
   change favours low-expressed genes and misses coherent programmes built from many modest
@@ -83,8 +83,13 @@ Accepts a tab- or comma-separated table: either the provider's `expression-matri
 the gene name and the rest are numeric samples (counts or CPM).
 
 The page auto-detects sample columns, guesses counts-vs-CPM, auto-groups by sample name,
-and lets students override everything. On **Run analysis** it rescales to CPM, computes
-log₂ fold changes, and — if **both** groups have ≥2 replicates — runs a **Welch t-test** on
+and lets students override everything. **Group A is the starting point and group B is what
+it is compared against**, so every fold change reads as B relative to A. The defaults are
+`Undifferentiated` (A) and `Differentiated` (B), matching this lab's experiment; columns
+named `und*`/`dif*` are detected, expanded to the full words, and ordered so the
+undifferentiated samples land in A whichever way round they appear in the file. Both group
+names are free-text, so any other experiment just gets renamed. On **Run analysis** it rescales to CPM, computes
+log₂ fold changes, and, if **both** groups have ≥2 replicates, runs a **Welch t-test** on
 log₂(CPM+1) with **Benjamini–Hochberg** correction; otherwise it says no statistics are
 possible and shows an MA plot. Results become a third dataset, with CSV export.
 
@@ -96,21 +101,21 @@ As soon as a student's analysis finishes, a **"Does your result match the publis
 section appears, comparing their result gene-by-gene against Cevallos et al. It reports:
 
 - **correlation** of log₂ fold changes (on the genes the published study calls significant),
-- **directional agreement** — what fraction move the same way,
+- **directional agreement**: what fraction move the same way,
 - **top-gene overlap** versus chance, with a hypergeometric p-value,
 - a **concordance scatter** (their fold change vs the published one, with the identity line;
   click any dot to open that gene),
-- a **landmark-gene table** — Id1/Id2/Id3, Dkk1, Slit3, Dbh, Cdk1, Gap43, Pcp4, housekeeping
-  genes — with an honest verdict per gene, and
+- a **landmark-gene table**: Id1/Id2/Id3, Dkk1, Slit3, Dbh, Cdk1, Gap43, Pcp4, housekeeping
+  genes, with an honest verdict per gene, and
 - a plain-English summary that adapts to strong / moderate / weak agreement.
 
 Two honesty features are built in. A gene where one dataset is flat and the other is large is
 labelled **"too small to tell"** rather than counted as agreement. And if the uploaded file is
-the bundled `*_SIMULATED.csv`, the panel says so loudly — that file is derived from the
+the bundled `*_SIMULATED.csv`, the panel says so loudly, because that file is derived from the
 published numbers, so it matches by construction and the comparison is circular.
 
 On the bundled *real* single-dish example this reports correlation 0.81, 85% directional
-agreement and 37× top-gene overlap — which is a fair picture of what a good pilot experiment
+agreement and 37× top-gene overlap, which is a fair picture of what a good pilot experiment
 looks like against a properly replicated study.
 
 ### The statistics are validated
@@ -123,14 +128,14 @@ They are exposed as `window.CADExplorer._welch` / `._bh` if you want to re-check
 
 It is still a *classroom approximation* of DESeq2, and the page says so. With 2–3 replicates
 a t-test cannot reach very small p-values, so after correcting ~12,000 genes only strong
-effects survive — the upload section explains this explicitly, since it is a genuine lesson
+effects survive. The upload section explains this explicitly, since it is a genuine lesson
 about why tools like DESeq2 share information across genes.
 
 ### The two example files
 
-- `example_undiff_vs_diff.csv` — **real** counts from dataset ①, 1 dish per condition.
+- `example_undiff_vs_diff.csv`: **real** counts from dataset ①, 1 dish per condition.
   Demonstrates honestly that no statistics are possible.
-- `example_practice_SIMULATED.csv` — **simulated** triplicates drawn around the *published*
+- `example_practice_SIMULATED.csv`: **simulated** triplicates drawn around the *published*
   (dataset ②) group means with 18% lognormal noise. Labelled as simulated everywhere it is
   offered. It exists so students can watch the statistics work end-to-end, and it gives a
   built-in answer key: the genes it flags (Id1/Id2/Id3, Gng4, Thy1) are the ones dataset ②
@@ -154,7 +159,7 @@ GEO data), so a public repo is fine and GitHub Pages hosts it free.
 This folder is already a git repository with everything committed on `main`. Two steps remain,
 both of which need your GitHub login:
 
-**1. Create an empty repo** at <https://github.com/new> — name it `cad-gene-explorer`,
+**1. Create an empty repo** at <https://github.com/new>, name it `cad-gene-explorer`,
 visibility **Public**, and do *not* add a README, .gitignore or licence (the repo already has them).
 
 **2. Push:**
@@ -176,7 +181,7 @@ Cloudflare Pages and Netlify also work and are equally free; use one of those in
 you later need to put the site behind a login.
 
 > Note: everything in `data.js` and the example CSVs is downloadable by anyone who opens the
-> site. That is fine for this content — but if you ever add unpublished data, the site would
+> site. That is fine for this content, but if you ever add unpublished data, the site would
 > need to move behind an access gate (e.g. Cloudflare Pages + Cloudflare Access, free for ≤50 users).
 
 ## Regenerating the data
@@ -190,14 +195,14 @@ rewrites `data.js` plus both example CSVs. Re-run after any upstream change, the
 
 ## Editing content
 
-- **Datasets, themes, quiz questions, intro text, colours** — the `DS1` / `DS2` dictionaries
+- **Datasets, themes, intro text, colours**: the `DS1` / `DS2` dictionaries
   in `build_explorer_data.py`. Re-run it after editing.
-- **Glossary** — the `<details>` blocks in the *Learn the terms* section of `index.html`.
-- **Upload logic / statistics** — `runUpload`, `welch`, `bh` in `app.js`.
-- **Styling** — CSS variables at the top of `style.css`.
+- **Glossary**: the `<details>` blocks in the *Learn the terms* section of `index.html`.
+- **Upload logic / statistics**: `runUpload`, `welch`, `bh` in `app.js`.
+- **Styling**: CSS variables at the top of `style.css`.
 
 Adding another dataset means appending a dictionary of the same shape to the `datasets`
-list — `app.js` needs no changes. Per-dataset switches it honours: `primary.hasStats`
+list, and `app.js` needs no changes. Per-dataset switches it honours: `primary.hasStats`
 (volcano vs MA), `primary.cut` (fold-change threshold when there are no statistics), `unit`
 (axis/label text), `noReplicateData` (hide per-dish dots), and an optional `secondary`
 comparison plot.

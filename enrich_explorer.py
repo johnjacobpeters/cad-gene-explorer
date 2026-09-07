@@ -40,7 +40,7 @@ pc=d1[(d1.gene_biotype=='protein_coding')&((d1[U]>1)|(d1[D]>1))].dropna(subset=[
 pc['lfc']=np.log2((pc[D]+1)/(pc[U]+1))
 bg1=int(len(pc))
 # n=1: no significance test exists, so take the top movers by fold change.
-# (Thresholding at 2x leaves only 61 genes — too few to detect a programme.)
+# (Thresholding at 2x leaves only 61 genes, too few to detect a programme.)
 up1=pc.nlargest(200,'lfc')['gene_name'].astype(str).str.upper().drop_duplicates().tolist()
 dn1=pc.nsmallest(200,'lfc')['gene_name'].astype(str).str.upper().drop_duplicates().tolist()
 print(f'[lab] bg={bg1}  up={len(up1)}  down={len(dn1)}')
@@ -107,7 +107,7 @@ result['string']={'nodes':nodes,'links':links,'enrich':str_enr}
 json.dump(result,open(OUT+'enrichment.json','w'),separators=(',',':'))
 print('\nSaved enrichment.json')
 for k in ('lab','cevallos'):
-    print(f'\n=== {k.upper()} — top UP terms ===')
+    print(f'\n=== {k.upper()}: top UP terms ===')
     for t in result[k]['up'][:8]: print(f"  [{t['db'][:14]:14s}] {t['term'][:58]:58s} p={t['p']:.1e} {t['overlap']}")
-    print(f'=== {k.upper()} — top DOWN terms ===')
+    print(f'=== {k.upper()}: top DOWN terms ===')
     for t in result[k]['dn'][:8]: print(f"  [{t['db'][:14]:14s}] {t['term'][:58]:58s} p={t['p']:.1e} {t['overlap']}")

@@ -66,10 +66,6 @@ details .body strong{color:var(--text)}
 .cond-legend{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0}
 .cond-legend span{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
 .cond-legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
-.quiz{border-left:4px solid var(--purple)}
-.quiz .q{font-weight:600;color:var(--text);margin-bottom:8px}
-.quiz .ans{display:none;margin-top:10px;padding:12px 14px;background:var(--s2);border-radius:8px;color:#d5d9f0;font-size:14px}
-.quiz.open .ans{display:block}
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
 .toolbar label{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
 .gene-title{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;margin-bottom:6px}
