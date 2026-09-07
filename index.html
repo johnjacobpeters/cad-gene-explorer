@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CAD Gene Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a class="brand" href="#top">🧬 CAD Gene Explorer</a>
+  <a href="#datasets">Datasets</a>
+  <a href="#explore">Explore a gene</a>
+  <a href="#primary-sec">Big picture</a>
+  <a href="#compare" id="nav-compare">Compare</a>
+  <a href="#themes">Themes</a>
+  <a href="#pathways">Pathways</a>
+  <a href="#upload">Your own data</a>
+  <a href="#crosscheck" id="nav-crosscheck" class="hidden">vs Published</a>
+  <a href="#learn">Learn the terms</a>
+  <a href="#try">Try it</a>
+</nav>
+
+<main id="top">
+
+<!-- ═══ DATASETS ═══ -->
+<section id="datasets">
+  <h1 id="ds-title">—</h1>
+  <p class="lead" id="ds-tagline"></p>
+  <div class="chips" id="ds-chips"><span class="hint" style="align-self:center">Choose a dataset:</span></div>
+  <div class="card" style="margin-top:14px">
+    <h3>The experiment in 60 seconds</h3>
+    <div id="ds-intro"></div>
+    <div class="cond-legend" id="cond-legend"></div>
+    <div class="grid3" style="margin-top:8px">
+      <div class="stat"><div class="v" id="s-genes">—</div><div class="l">genes you can look up</div></div>
+      <div class="stat"><div class="v" style="color:var(--red)" id="s-up">—</div><div class="l" id="s-up-l">up</div></div>
+      <div class="stat"><div class="v" style="color:var(--blue)" id="s-dn">—</div><div class="l" id="s-dn-l">down</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ EXPLORE ═══ -->
+<section id="explore">
+  <h2>Explore a gene</h2>
+  <div class="search-wrap">
+    <input class="search" id="gene-search" type="text" placeholder="Type a gene name… e.g. Cdk1" autocomplete="off" spellcheck="false">
+    <div class="sugg" id="sugg"></div>
+  </div>
+  <div class="chips" id="quick-chips"><span class="hint" style="align-self:center">Try:</span></div>
+  <div style="margin-top:10px"><button class="btn" id="btn-random">🎲 Show me a random interesting gene</button></div>
+
+  <div id="gene-panel" class="card hidden" style="margin-top:18px">
+    <div class="gene-title"><span class="name" id="g-name">—</span><span id="g-badges"></span></div>
+    <p class="hint" id="g-sub"></p>
+    <div class="grid5 cond-cards" id="g-cards" style="margin:14px 0"></div>
+    <div class="toolbar">
+      <h3 style="margin:0">Expression in each dish</h3>
+      <label><input type="checkbox" id="log-toggle"> log scale</label>
+      <span class="hint" id="chart-note">Bars = average · dots = each individual dish (replicate)</span>
+    </div>
+    <div id="gene-chart" class="chart" style="height:340px"></div>
+    <div style="margin-top:16px"><h3>What this means</h3><div id="g-verdict"></div></div>
+    <p class="hint" style="margin-top:8px">Share this gene: <span class="mono" id="g-link"></span></p>
+  </div>
+  <div id="gene-empty" class="card empty">Search for a gene above, click a chip, or pick a random one to get started.</div>
+</section>
+
+<!-- ═══ PRIMARY PLOT (volcano or MA) ═══ -->
+<section id="primary-sec">
+  <h2 id="primary-title">Big picture</h2>
+  <p id="primary-desc"></p>
+  <div id="primary-plot" class="chart" style="height:480px"></div>
+  <p class="hint" style="margin-top:8px" id="primary-legend"></p>
+</section>
+
+<!-- ═══ SECONDARY (concordance) ═══ -->
+<section id="compare" class="hidden">
+  <h2 id="sec-title">Compare</h2>
+  <p id="sec-desc"></p>
+  <div class="note" id="sec-note"></div>
+  <div id="sec-plot" class="chart" style="height:480px"></div>
+</section>
+
+<!-- ═══ THEMES ═══ -->
+<section id="themes">
+  <h2>Explore by theme</h2>
+  <p>Genes rarely act alone. Pick a group to see how a whole biological program responded.</p>
+  <div class="chips" id="theme-chips"></div>
+  <div id="theme-panel" class="card hidden" style="margin-top:14px">
+    <h3 id="theme-title"></h3>
+    <p id="theme-desc"></p>
+    <div class="tbl"><table><thead><tr id="theme-head"></tr></thead><tbody id="theme-tbody"></tbody></table></div>
+    <p class="hint" style="margin-top:8px" id="theme-foot">Values are average CPM. Click a row to open that gene.</p>
+  </div>
+</section>
+
+<!-- ═══ PATHWAYS ═══ -->
+<section id="pathways">
+  <h2>Pathways — what kind of biology changed?</h2>
+  <p>Individual genes are hard to interpret. Instead we ask: of the genes that changed, are any <em>known biological programs</em> over-represented? Each bar is a pathway or Gene Ontology term; longer and further left means more surprising. <strong style="color:var(--gold)">Click a term</strong> to see which genes put it there, then click a gene to open it.</p>
+  <p class="hint" id="enr-how"></p>
+  <div class="dir-tabs" style="margin-top:12px">
+    <button class="dir-btn up-active" id="enr-up-btn" onclick="switchEnr('up')">↑ Up in differentiated</button>
+    <button class="dir-btn" id="enr-dn-btn" onclick="switchEnr('dn')">↓ Down in differentiated</button>
+  </div>
+  <div class="card" id="enr-box"></div>
+
+  <div id="string-wrap" class="hidden">
+    <h3 style="margin-top:22px">Protein interaction network (STRING)</h3>
+    <p>Genes do not work alone. This map connects the strongest-changing proteins that are <em>known to physically interact or act together</em>, from the STRING database. Tight clusters are working machines. <strong style="color:var(--gold)">Drag nodes, scroll to zoom, click one</strong> to open that gene.</p>
+    <div class="cond-legend"><span><i style="background:#e05252"></i>higher in differentiated</span><span><i style="background:#4a90d9"></i>lower in differentiated</span><span class="hint">bigger circle = more connections</span></div>
+    <svg id="string-svg"></svg>
+    <p class="hint" id="string-note"></p>
+  </div>
+</section>
+
+<!-- ═══ UPLOAD ═══ -->
+<section id="upload">
+  <h2>Analyze your own data</h2>
+  <p>Have your own RNA-seq table? Load it here and explore it with the same tools. <strong style="color:var(--text)">Everything runs inside your browser</strong> — the file is never uploaded anywhere, and it disappears when you close the page.</p>
+  <div class="grid2">
+    <div class="card" style="margin-bottom:0">
+      <h3>1 · Choose a file</h3>
+      <input type="file" id="up-file" accept=".tsv,.csv,.txt,.tab" style="color:var(--muted);font-size:13px">
+      <p class="hint" style="margin-top:10px">Accepted: a tab- or comma-separated table with one row per gene. Either the standard <span class="mono">expression-matrix.tsv</span> from the sequencing provider (columns <span class="mono">gene_name</span>, <span class="mono">gene_biotype</span>, <span class="mono">&lt;sample&gt;_cpm</span>…), or a simple table whose first column is the gene name and every other column is a sample of raw counts or CPM.</p>
+      <p class="hint">No file handy? Try one of these:<br>
+        · <a href="example_undiff_vs_diff.csv" download style="color:var(--gold)">example_undiff_vs_diff.csv</a> — the <strong>real</strong> undifferentiated/differentiated counts (1 dish each, so no statistics — that is the lesson).<br>
+        · <a href="example_practice_SIMULATED.csv" download style="color:var(--gold)">example_practice_SIMULATED.csv</a> — <strong>simulated</strong> 3-vs-3 replicates built by adding random noise to those real values. Use it to see the statistics working; do <em>not</em> draw biology from it.</p>
+      <div id="up-status" class="hint" style="margin-top:8px"></div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <h3>2 · Assign each sample to a group</h3>
+      <div class="grid2" style="gap:10px;margin-bottom:10px">
+        <label class="hint">Group A — baseline / control<br><input id="up-nameA" class="search" style="font-size:14px;padding:8px 12px" value="Control"></label>
+        <label class="hint">Group B — treatment / condition<br><input id="up-nameB" class="search" style="font-size:14px;padding:8px 12px" value="Treatment"></label>
+      </div>
+      <div class="tbl"><table><thead><tr><th>Sample</th><th>Total</th><th>Group</th></tr></thead><tbody id="up-samples"><tr><td colspan="3" class="hint">Load a file first.</td></tr></tbody></table></div>
+      <div class="toolbar" style="margin-top:10px">
+        <label><input type="checkbox" id="up-iscpm"> values are already CPM (don't rescale)</label>
+        <label><input type="checkbox" id="up-pconly" checked> keep protein-coding genes only (if the file says)</label>
+      </div>
+      <button class="btn primary" id="up-run" disabled>Run analysis →</button>
+      <button class="btn" id="up-export" disabled style="margin-left:8px">⬇ Export results (CSV)</button>
+    </div>
+  </div>
+  <div class="ok" style="margin-top:14px" id="up-how">
+    <strong>What happens when you click Run:</strong> counts are rescaled to CPM (counts per million) so dishes are comparable; each gene's average in Group B is divided by its average in Group A to give a log₂ fold change. If <em>both</em> groups have at least two dishes, a Welch t-test on log₂(CPM+1) gives a p-value per gene, corrected for testing thousands of genes at once (Benjamini–Hochberg). That's a simplified classroom version of what DESeq2 does — good for learning, not for publishing.
+    <br><br><strong>Expect fewer hits than a real tool.</strong> With only 2–3 dishes per group a t-test can never produce a very small p-value (there is too little information), and after correcting for ~12,000 genes only the strongest changes survive. Real tools like DESeq2 get more power by sharing information across genes. If a gene looks obviously different but comes out "not significant", that is usually this limitation — not evidence the gene is unchanged.
+  </div>
+</section>
+
+<!-- ═══ CROSS-CHECK vs PUBLISHED ═══ -->
+<section id="crosscheck" class="hidden">
+  <h2>Does your result match the published study?</h2>
+  <p>Your uploaded data is compared, gene by gene, against <strong style="color:var(--text)">Cevallos et al. 2025</strong> — an independent published experiment on the same cells. Agreement between two separate labs is the strongest evidence a finding is real.</p>
+  <div class="note" id="cc-caveat"></div>
+  <div class="grid team-4" id="cc-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
+  <div class="card">
+    <h3>Gene-by-gene agreement</h3>
+    <p style="font-size:12.5px;margin-bottom:10px">Each dot is a gene. <strong style="color:var(--text)">Across</strong> = how much it changed in <em>your</em> data. <strong style="color:var(--text)">Up</strong> = how much it changed in the published study. If the two experiments agree, dots line up along the <span style="color:var(--gold)">gold diagonal</span>. Dots in the top-right and bottom-left quadrants agree in direction; the other two quadrants disagree. <strong style="color:var(--gold)">Click a dot</strong> to open that gene.</p>
+    <div id="cc-plot" class="chart" style="height:470px"></div>
+    <p class="hint" id="cc-quad"></p>
+  </div>
+  <div class="card">
+    <h3>Landmark genes — the ones this experiment is known for</h3>
+    <p style="font-size:12.5px;margin-bottom:10px">These are the genes the published study reports most strongly. Does your data reproduce them?</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Gene</th><th>What it is</th><th>Your log₂FC</th><th>Published log₂FC</th><th>Agree?</th></tr></thead>
+      <tbody id="cc-markers"></tbody>
+    </table></div>
+  </div>
+  <div id="cc-verdict"></div>
+</section>
+
+<!-- ═══ LEARN ═══ -->
+<section id="learn">
+  <h2>Learn the terms</h2>
+  <details><summary>RNA-seq — what is actually being measured?</summary><div class="body">Every cell constantly copies its active genes into RNA. RNA-seq collects all of that RNA, reads it, and counts how many reads came from each gene. More reads = the gene is more "on". It's a snapshot of what the cell is doing, not what it <em>could</em> do.</div></details>
+  <details><summary>CPM — counts per million</summary><div class="body">Different dishes get different numbers of total reads (one might have 15 million, another 3 million). To compare fairly, each gene's count is scaled to "per million reads". <strong>CPM is the number on the y-axis of the gene chart.</strong> Roughly: under 1 = basically off, 10–100 = solidly on, 1000+ = a heavy hitter.</div></details>
+  <details><summary>Replicates — why the number of dots matters</summary><div class="body">A <strong>replicate</strong> is an independent dish treated the same way. Replicates tell you how much a gene wobbles naturally. With several dishes per condition we can ask "is the difference bigger than the wobble?" — that's a statistical test. With only one dish per condition there's no wobble to measure, so we can only <em>describe</em> a difference, not <em>test</em> it. The undifferentiated-vs-differentiated dataset is exactly that situation.</div></details>
+  <details><summary>log₂ fold change — the "how much" number</summary><div class="body">Fold change is the ratio: treated ÷ control. We take log₂ so up and down are symmetric: <strong>+1 = doubled, +2 = 4×, +3 = 8×; −1 = halved, −3 = one-eighth.</strong> A log₂FC of −3.5 means the gene dropped to about 1/11th of its starting level.</div></details>
+  <details><summary>p-value and adjusted p-value — the "how sure" number</summary><div class="body">A <strong>p-value</strong> is the chance you'd see a difference this big by luck if nothing were really going on. Small = convincing. But we test ~13,000 genes at once, so some will look convincing by luck alone. The <strong>adjusted p-value</strong> (also called FDR) corrects for that. We call a gene "significant" when adjusted p &lt; 0.05 <em>and</em> it changed at least 2× (|log₂FC| &gt; 1).</div></details>
+  <details><summary>DESeq2 vs the t-test used for your own data</summary><div class="body">DESeq2 is the standard tool for asking "which genes really changed?" It models count noise carefully and borrows information across genes, which makes it reliable even with few replicates. The <strong>Welch t-test</strong> this page runs on uploaded data is a simpler cousin: it compares the two groups' averages relative to their spread, gene by gene. It captures the idea, and it's what you'd learn in an intro stats course — but for a real paper you'd use DESeq2 or edgeR.</div></details>
+  <details><summary>Volcano plot — reading it in 10 seconds</summary><div class="body">Left–right is effect size, up is confidence. The shape looks like an erupting volcano because big changes tend to be confident changes. <strong>Look at the top-left and top-right</strong>: those genes changed a lot <em>and</em> we're sure about it. Dots near the bottom middle are noise. You only get a volcano when there are replicates to compute p-values from.</div></details>
+  <details><summary>MA plot — the volcano's cousin for n=1</summary><div class="body">With one dish per condition there are no p-values, so instead we plot each gene's fold change (up–down) against how strongly it's expressed overall (left–right). Genes far up or down changed a lot. Trust the ones on the <em>right</em> more: highly expressed genes are measured precisely, while a "10× change" in a gene with 2 reads is mostly noise.</div></details>
+  <details><summary>Batch effect — why samples from different runs need care</summary><div class="body">Samples processed on different days, by different hands, or on different sequencing runs pick up small systematic differences that have nothing to do with biology. When two conditions were sequenced separately, some of their difference could be batch, not treatment. Big, biologically coherent changes are still informative; small ones aren't.</div></details>
+  <details><summary>Differentiation — what "undifferentiated vs differentiated" means</summary><div class="body">CAD cells can be kept dividing in a stem-like state, or nudged (by removing serum) to stop dividing and grow long neuron-like processes. That switch — from a proliferating cell to a mature, specialised neuron — is called differentiation, and it rewires thousands of genes: division genes go quiet, neuron-identity genes switch on.</div></details>
+  <details><summary>CAD cells — what are they?</summary><div class="body">CAD cells are a mouse line derived from <strong>Cath.a</strong> cells, a central-nervous-system catecholaminergic line — the kind of neuron that makes dopamine and noradrenaline. In serum they divide; in serum-free media they stop dividing and grow neurite-like processes. That makes them a convenient, cheap model for asking what happens as a neuron matures, without needing animals.</div></details>
+  <details><summary>Replication — why two datasets of the same experiment?</summary><div class="body">Dataset ① is from this lab (1 dish per condition). Dataset ② is an independent, <strong>published</strong> study (Cevallos et al. 2025) that did the same experiment with 3 dishes per condition and deposited the results publicly. Getting the same answer from different hands, different cells and different sequencing runs is the strongest evidence a finding is real — much stronger than any single p-value. Try looking up <span class="mono">Id3</span> in both.</div></details>
+  <details><summary>Where published data lives — GEO</summary><div class="body">The <strong>Gene Expression Omnibus (GEO)</strong> is a free public archive at NCBI where researchers must deposit sequencing data when they publish. Every dataset gets an accession like <span class="mono">GSE291553</span>. Anyone can download it — which is how dataset ② got here, and how you could analyse someone else\'s experiment yourself using the upload tool above.</div></details>
+</section>
+
+<!-- ═══ TRY IT ═══ -->
+<section id="try">
+  <h2>Try it — guided questions</h2>
+  <p>Work through these using the explorer. Click <em>reveal</em> to check yourself.</p>
+  <div id="quiz"></div>
+</section>
+
+</main>
+<footer>CAD Gene Explorer · mouse RNA-seq · built for teaching · your uploaded files never leave your computer</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
