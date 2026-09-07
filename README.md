@@ -90,6 +90,29 @@ possible and shows an MA plot. Results become a third dataset, with CSV export.
 
 **Files never leave the computer.** Parsing and statistics run entirely in the browser.
 
+### Automatic cross-check against the published study
+
+As soon as a student's analysis finishes, a **"Does your result match the published study?"**
+section appears, comparing their result gene-by-gene against Cevallos et al. It reports:
+
+- **correlation** of log₂ fold changes (on the genes the published study calls significant),
+- **directional agreement** — what fraction move the same way,
+- **top-gene overlap** versus chance, with a hypergeometric p-value,
+- a **concordance scatter** (their fold change vs the published one, with the identity line;
+  click any dot to open that gene),
+- a **landmark-gene table** — Id1/Id2/Id3, Dkk1, Slit3, Dbh, Cdk1, Gap43, Pcp4, housekeeping
+  genes — with an honest verdict per gene, and
+- a plain-English summary that adapts to strong / moderate / weak agreement.
+
+Two honesty features are built in. A gene where one dataset is flat and the other is large is
+labelled **"too small to tell"** rather than counted as agreement. And if the uploaded file is
+the bundled `*_SIMULATED.csv`, the panel says so loudly — that file is derived from the
+published numbers, so it matches by construction and the comparison is circular.
+
+On the bundled *real* single-dish example this reports correlation 0.81, 85% directional
+agreement and 37× top-gene overlap — which is a fair picture of what a good pilot experiment
+looks like against a properly replicated study.
+
 ### The statistics are validated
 
 `app.js` implements Welch's t-test (with its own `lgamma`/`betacf`/incomplete-beta routines)
@@ -123,17 +146,34 @@ cd "/Users/johnpeters/Desktop/RNA-seq-analysis/cad-explorer" && python3 -m http.
 
 then open <http://localhost:8000>. Needs internet for the Plotly library and fonts.
 
-## Hosting — GitHub Pages (free)
+## Deploying to GitHub Pages (free)
 
-All bundled data is publicly shareable (this lab's undiff/diff experiment, plus already-published
-GEO data), so a public repo is fine and **GitHub Pages hosts it free**:
+All bundled data is publicly shareable (this lab's undiff/diff experiment plus already-published
+GEO data), so a public repo is fine and GitHub Pages hosts it free.
 
-1. Push this folder to a **public** GitHub repo.
-2. Repo → **Settings** → **Pages** → Source: *Deploy from a branch* → branch `main`, folder `/` (root).
-3. Live at `https://<username>.github.io/<repo>/` within a minute or two.
+This folder is already a git repository with everything committed on `main`. Two steps remain,
+both of which need your GitHub login:
 
-Every `git push` redeploys. Cloudflare Pages and Netlify also work and are equally free; only
-use one of those if you later need to put the site behind a login.
+**1. Create an empty repo** at <https://github.com/new> — name it `cad-gene-explorer`,
+visibility **Public**, and do *not* add a README, .gitignore or licence (the repo already has them).
+
+**2. Push:**
+
+```bash
+cd "/Users/johnpeters/Desktop/RNA-seq-analysis/cad-explorer" && git push -u origin main
+```
+
+The `origin` remote is already configured. If git asks for a password, use a
+[personal access token](https://github.com/settings/tokens) rather than your account password.
+
+**3. Turn on Pages:** repo → **Settings** → **Pages** → Source *Deploy from a branch* →
+branch `main`, folder `/ (root)` → **Save**.
+
+The site goes live at **https://johnjacobpeters.github.io/cad-gene-explorer/** within a minute
+or two. Every later `git push` redeploys automatically.
+
+Cloudflare Pages and Netlify also work and are equally free; use one of those instead only if
+you later need to put the site behind a login.
 
 > Note: everything in `data.js` and the example CSVs is downloadable by anyone who opens the
 > site. That is fine for this content — but if you ever add unpublished data, the site would
