@@ -190,6 +190,28 @@ you later need to put the site behind a login.
 > site. That is fine for this content, but if you ever add unpublished data, the site would
 > need to move behind an access gate (e.g. Cloudflare Pages + Cloudflare Access, free for ≤50 users).
 
+## Editing the wording
+
+All the text on the site is listed in `editing/CAD_Explorer_text.xlsx`, one row per
+string, grouped by where it appears. Type replacements in the yellow **NEW TEXT**
+column, leave the rest blank, and send the file back:
+
+```bash
+python3 tools/extract_strings.py                       # regenerate the sheet from source
+python3 tools/apply_strings.py editing/CAD_Explorer_text.xlsx   # write edits back
+```
+
+`apply_strings.py` re-extracts first, so spans are always current, then checks every
+edited row's "Current text" against the source before writing anything. If the site
+has moved on since the sheet was made, it names the mismatched rows and writes
+nothing rather than guessing. `index.html` and `app.js` are patched by character
+span, highest offset first, so one edit cannot shift another. Edits to `data.js` are
+mirrored into `build_explorer_data.py`, so a later rebuild does not undo them.
+
+Sentences assembled at runtime around live numbers are deliberately not listed, since
+they cannot be edited safely in a spreadsheet. The workbook has a Requests tab for
+describing those changes in plain English instead.
+
 ## Cache-busting
 
 `index.html` loads `style.css`, `data.js` and `app.js` with a `?v=<date>` stamp. Without it a
