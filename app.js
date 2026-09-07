@@ -38,15 +38,24 @@
   }
   function updateHash() { history.replaceState(null, '', '#ds=' + DS.id + (current ? '&gene=' + encodeURIComponent(current) : '')); }
 
+  // Tab order is fixed: the published study, then the student's own file, then the
+  // single-dish backup data. The upload slot holds a placeholder until a file is loaded.
+  const CHIP_ORDER = ['cevallos', 'upload', 'lab'];
   function renderDsChips() {
     const box = $('ds-chips'); box.querySelectorAll('.chip').forEach(x => x.remove());
-    DATASETS.forEach(d => {
-      const b = document.createElement('button'); b.className = 'chip theme' + (d === DS ? ' active' : ''); b.textContent = d.chipLabel || d.title;
-      b.addEventListener('click', () => { if (d !== DS) activate(d); $('datasets').scrollIntoView({ behavior: 'smooth' }); });
-      box.appendChild(b);
+    const add = (label, active, onClick) => {
+      const b = document.createElement('button');
+      b.className = 'chip theme' + (active ? ' active' : ''); b.textContent = label;
+      b.addEventListener('click', onClick); box.appendChild(b);
+    };
+    const pick = d => add(d.chipLabel || d.title, d === DS, () => { if (d !== DS) activate(d); $('datasets').scrollIntoView({ behavior: 'smooth' }); });
+    const seen = new Set();
+    CHIP_ORDER.forEach(id => {
+      const d = DATASETS.find(x => x.id === id);
+      if (d) { seen.add(d); pick(d); }
+      else if (id === 'upload') add('② ＋ your own file', false, () => $('upload').scrollIntoView({ behavior: 'smooth' }));
     });
-    const b = document.createElement('button'); b.className = 'chip theme'; b.textContent = '＋ your own file';
-    b.addEventListener('click', () => $('upload').scrollIntoView({ behavior: 'smooth' })); box.appendChild(b);
+    DATASETS.forEach(d => { if (!seen.has(d)) pick(d); });   // anything new still gets a chip
   }
   function renderIntro() {
     $('ds-title').textContent = DS.title; $('ds-tagline').textContent = DS.tagline || '';
@@ -460,16 +469,36 @@
 
   function renderCrossCheck() {
     const sec = $('crosscheck'), nav = $('nav-crosscheck');
-    const show = DS && DS.id === 'upload';
+    const show = DS && (DS.id === 'upload' || DS.id === 'lab');
     sec.classList.toggle('hidden', !show); if (nav) nav.classList.toggle('hidden', !show);
     if (!show) return;
+    const pct = v => isNaN(v) ? '-' : (100 * v).toFixed(0) + '%';
+    // the same panel serves an uploaded file and the built-in backup data, so it says which
+    const isUp = DS.id === 'upload';
+    const MINE = isUp ? 'your data' : 'the backup data';
+    const MINE_CAP = isUp ? 'Your' : 'The backup data\u2019s';
+    $('cc-h2').textContent = isUp ? 'Does your result match the published study?'
+                                  : 'Does the backup data match the published study?';
+    $('cc-lead').innerHTML = (isUp
+      ? 'Your uploaded data is compared, gene by gene, against '
+      : 'This lab\u2019s single-dish backup data is compared, gene by gene, against ')
+      + '<strong style="color:var(--text)">Cevallos et al. 2025</strong>, an independent published experiment on the same cells. '
+      + (isUp ? 'Agreement between two separate labs is the strongest evidence a finding is real.'
+              : 'With one dish per condition there are no p-values here, so agreement with an independent lab is the only real evidence available.');
+    $('cc-plotdesc').innerHTML = 'Each dot is a gene. <strong style="color:var(--text)">Across</strong> = how much it changed in '
+      + '<em>' + MINE + '</em>. <strong style="color:var(--text)">Up</strong> = how much it changed in the published study. '
+      + 'If the two experiments agree, dots line up along the <span style="color:var(--gold)">gold diagonal</span>. '
+      + 'Dots in the top-right and bottom-left quadrants agree in direction; the other two quadrants disagree. '
+      + '<strong style="color:var(--gold)">Click a dot</strong> to open that gene.';
+    $('cc-th-you').textContent = isUp ? 'Your log\u2082FC' : 'Backup log\u2082FC';
+    $('cc-lm-desc').textContent = 'These are the genes the published study reports most strongly. Does '
+      + MINE + ' reproduce them?';
     const cc = computeCrossCheck(DS);
     if (!cc || cc.tooFew) {
       $('cc-stats').innerHTML = '';
-      $('cc-caveat').innerHTML = 'Only ' + ((cc && cc.n) || 0) + ' of your genes matched the published mouse dataset by name, which is too few to compare. This usually means a different organism, or gene IDs (like ENSMUSG…) instead of gene symbols.';
+      $('cc-caveat').innerHTML = 'Only ' + ((cc && cc.n) || 0) + ' genes in ' + MINE + ' matched the published mouse dataset by name, which is too few to compare. This usually means a different organism, or gene IDs (like ENSMUSG…) instead of gene symbols.';
       $('cc-markers').innerHTML = ''; $('cc-verdict').innerHTML = ''; Plotly.purge('cc-plot'); return;
     }
-    const pct = v => isNaN(v) ? '-' : (100 * v).toFixed(0) + '%';
     $('cc-caveat').innerHTML = DS.simulated
       ? '<strong>⚠ This file is the simulated practice dataset.</strong> It was generated <em>from</em> the published study\'s own numbers, so it will match almost perfectly by construction. That is circular: it shows the comparison working, not a real replication. Upload genuine data to get a meaningful answer.'
       : 'Matched <strong>' + cc.n.toLocaleString() + '</strong> genes by name against the published study. '
@@ -487,14 +516,14 @@
     const rest = cc.points.filter(r => !(r.pubP != null && r.pubP < 0.05 && Math.abs(r.pub) > 1));
     const mk = (d, name, color, size, op) => ({ type: 'scattergl', mode: 'markers', name,
       x: d.map(r => r.you), y: d.map(r => r.pub), text: d.map(r => r.name), customdata: d.map(r => r.name),
-      hovertemplate: '<b>%{text}</b><br>yours %{x:.2f}<br>published %{y:.2f}<extra></extra>',
+      hovertemplate: '<b>%{text}</b><br>' + (isUp ? 'yours' : 'backup') + ' %{x:.2f}<br>published %{y:.2f}<extra></extra>',
       marker: { color, size, opacity: op } });
     const lim = Math.max(2, Math.min(9, Math.ceil(Math.max(
       ...cc.points.map(r => Math.abs(r.you)).filter(isFinite).sort((a, b) => b - a).slice(0, 20),
       ...cc.points.map(r => Math.abs(r.pub)).filter(isFinite).sort((a, b) => b - a).slice(0, 20)))));
     Plotly.react('cc-plot', [mk(rest, 'other genes', '#454b6e', 4, .45), mk(sig, 'significant in published', '#f5c842', 5, .75)],
       Object.assign({}, PLOT, {
-        xaxis: { title: 'YOUR log₂ fold change', gridcolor: '#2a3052', zerolinecolor: '#888', range: [-lim, lim] },
+        xaxis: { title: (isUp ? 'YOUR' : 'BACKUP DATA') + ' log₂ fold change', gridcolor: '#2a3052', zerolinecolor: '#888', range: [-lim, lim] },
         yaxis: { title: 'PUBLISHED log₂ fold change', gridcolor: '#2a3052', zerolinecolor: '#888', range: [-lim, lim] },
         margin: { t: 16, r: 20, b: 55, l: 65 }, hovermode: 'closest',
         legend: { bgcolor: 'rgba(0,0,0,0)', y: 1.08, orientation: 'h' },
@@ -512,7 +541,7 @@
       const yoursFlat = Math.abs(m.you) < 0.3 && Math.abs(m.pub) >= 1;
       const theirsFlat = Math.abs(m.pub) < 0.3 && Math.abs(m.you) >= 1;
       const tick = bothFlat ? '<span class="pill pill-ns">both flat ✓</span>'
-        : yoursFlat ? '<span class="pill pill-ns" title="your data shows essentially no change, so this is not really agreement">yours too small to tell</span>'
+        : yoursFlat ? '<span class="pill pill-ns" title="' + MINE + ' shows essentially no change, so this is not really agreement">too small to tell</span>'
         : theirsFlat ? '<span class="pill pill-ns">not seen in theirs</span>'
         : agree ? '<span class="pill pill-new">✓ same direction</span>'
                 : '<span class="pill pill-dn">✗ opposite</span>';
@@ -530,13 +559,13 @@
     let head, body, colr;
     if (r >= 0.5 && d >= 0.75) {
       colr = '#00b894'; head = 'Strong agreement with the published study.';
-      body = 'Your fold changes track theirs closely (correlation ' + r.toFixed(2) + ', ' + pct(d) + ' the same direction on their significant genes), and your top-changing genes overlap theirs about ' + cc.enrich.toFixed(0) + '× more than chance would give. Two independent experiments finding the same thing is far stronger evidence than either alone.';
+      body = MINE_CAP + ' fold changes track theirs closely (correlation ' + r.toFixed(2) + ', ' + pct(d) + ' the same direction on their significant genes), and the top-changing genes overlap theirs about ' + cc.enrich.toFixed(0) + '× more than chance would give. Two independent experiments finding the same thing is far stronger evidence than either alone.';
     } else if (r >= 0.25 || d >= 0.65) {
       colr = '#f5c842'; head = 'Moderate agreement: the broad story matches, the details are noisy.';
-      body = 'Correlation is ' + r.toFixed(2) + ' with ' + pct(d) + ' directional agreement on their significant genes, and your top genes overlap theirs ' + cc.enrich.toFixed(1) + '× more than chance. That pattern usually means your experiment is measuring the same biology but with fewer replicates or less depth, so only the largest changes come through clearly. Trust your strongest hits; treat the absence of a gene as "not enough evidence" rather than "no change".';
+      body = 'Correlation is ' + r.toFixed(2) + ' with ' + pct(d) + ' directional agreement on their significant genes, and the top genes overlap theirs ' + cc.enrich.toFixed(1) + '× more than chance. That pattern usually means ' + (isUp ? 'your experiment is' : 'this experiment was') + ' measuring the same biology but with fewer replicates or less depth, so only the largest changes come through clearly. Trust the strongest hits; treat the absence of a gene as "not enough evidence" rather than "no change".';
     } else {
       colr = '#8a90b3'; head = 'Little agreement with this particular study.';
-      body = 'Correlation is ' + (isNaN(r) ? 'not estimable' : r.toFixed(2)) + ' and directional agreement is ' + pct(d) + ', close to a coin flip. That is entirely expected if your experiment asks a different question: a different treatment, cell type or timepoint. It only counts as a problem if you were trying to reproduce this specific differentiation experiment.';
+      body = 'Correlation is ' + (isNaN(r) ? 'not estimable' : r.toFixed(2)) + ' and directional agreement is ' + pct(d) + ', close to a coin flip. That is entirely expected if ' + (isUp ? 'your experiment asks' : 'the experiment asked') + ' a different question: a different treatment, cell type or timepoint. It only counts as a problem if the aim was to reproduce this specific differentiation experiment.';
     }
     $('cc-verdict').innerHTML = '<div class="verdict" style="border-color:' + colr + '"><strong>' + head + '</strong> ' + body + '</div>';
   }
@@ -650,7 +679,7 @@
     const hk = HK.filter(h => genes[h]); if (hk.length) sets.push({ title: 'Housekeeping genes: a built-in health check', desc: 'Genes every cell needs all the time. If these move a lot, either the cells are in serious trouble or something technical went wrong.', genes: hk });
     const ds = {
       id: 'upload', simulated: /SIMULATED/i.test(UP.fname || ''),
-      chipLabel: '📄 ' + (UP.fname.length > 22 ? UP.fname.slice(0, 20) + '…' : UP.fname), title: 'Your data: ' + nameB + ' vs ' + nameA,
+      chipLabel: '② ' + (UP.fname.length > 22 ? UP.fname.slice(0, 20) + '…' : UP.fname), title: 'Your data: ' + nameB + ' vs ' + nameA,
       tagline: `${UP.fname} · ${UP.samples.length} samples loaded · ${names.length.toLocaleString()} expressed genes · analysed entirely in your browser`,
       intro: `<p><strong style="color:var(--text)">${esc(nameA)}</strong> (${A.length} dish${A.length === 1 ? '' : 'es'}) is the starting point; <strong style="color:var(--text)">${esc(nameB)}</strong> (${B.length} dish${B.length === 1 ? '' : 'es'}) is what it is compared against, so every fold change below reads as ${esc(nameB)} relative to ${esc(nameA)}. ${isCpm ? 'Values were used as CPM as provided.' : 'Raw counts were rescaled to counts-per-million.'} ${pcOnly ? 'Only protein-coding genes were kept.' : ''} ${hasStats ? `Because both groups have replicates, each gene got a Welch t-test on log₂(CPM+1) with Benjamini–Hochberg correction. <em>This is a classroom approximation of DESeq2, fine for exploring, not for publishing.</em>` : `<strong>At least one group has a single dish, so no statistics were possible</strong>, so fold changes are descriptive only.`}</p>`,
       conditions: [{ id: 'A', label: nameA, short: nameA, color: '#4a90d9', n: A.length, desc: 'Group A: the starting point' }, { id: 'B', label: nameB, short: nameB, color: '#e05252', n: B.length, desc: 'Group B: compared against Group A' }],

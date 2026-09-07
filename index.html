@@ -155,21 +155,21 @@
 
 <!-- ═══ CROSS-CHECK vs PUBLISHED ═══ -->
 <section id="crosscheck" class="hidden">
-  <h2>Does your result match the published study?</h2>
-  <p>Your uploaded data is compared, gene by gene, against <strong style="color:var(--text)">Cevallos et al. 2025</strong>, an independent published experiment on the same cells. Agreement between two separate labs is the strongest evidence a finding is real.</p>
+  <h2 id="cc-h2">Does your result match the published study?</h2>
+  <p id="cc-lead">Your uploaded data is compared, gene by gene, against <strong style="color:var(--text)">Cevallos et al. 2025</strong>, an independent published experiment on the same cells. Agreement between two separate labs is the strongest evidence a finding is real.</p>
   <div class="note" id="cc-caveat"></div>
   <div class="grid team-4" id="cc-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
   <div class="card">
     <h3>Gene-by-gene agreement</h3>
-    <p style="font-size:12.5px;margin-bottom:10px">Each dot is a gene. <strong style="color:var(--text)">Across</strong> = how much it changed in <em>your</em> data. <strong style="color:var(--text)">Up</strong> = how much it changed in the published study. If the two experiments agree, dots line up along the <span style="color:var(--gold)">gold diagonal</span>. Dots in the top-right and bottom-left quadrants agree in direction; the other two quadrants disagree. <strong style="color:var(--gold)">Click a dot</strong> to open that gene.</p>
+    <p id="cc-plotdesc" style="font-size:12.5px;margin-bottom:10px">Each dot is a gene. <strong style="color:var(--text)">Across</strong> = how much it changed in <em>your</em> data. <strong style="color:var(--text)">Up</strong> = how much it changed in the published study. If the two experiments agree, dots line up along the <span style="color:var(--gold)">gold diagonal</span>. Dots in the top-right and bottom-left quadrants agree in direction; the other two quadrants disagree. <strong style="color:var(--gold)">Click a dot</strong> to open that gene.</p>
     <div id="cc-plot" class="chart" style="height:470px"></div>
     <p class="hint" id="cc-quad"></p>
   </div>
   <div class="card">
     <h3>Landmark genes: the ones this experiment is known for</h3>
-    <p style="font-size:12.5px;margin-bottom:10px">These are the genes the published study reports most strongly. Does your data reproduce them?</p>
+    <p id="cc-lm-desc" style="font-size:12.5px;margin-bottom:10px">These are the genes the published study reports most strongly. Does your data reproduce them?</p>
     <div class="tbl"><table>
-      <thead><tr><th>Gene</th><th>What it is</th><th>Your log₂FC</th><th>Published log₂FC</th><th>Agree?</th></tr></thead>
+      <thead><tr><th>Gene</th><th>What it is</th><th id="cc-th-you">Your log₂FC</th><th>Published log₂FC</th><th>Agree?</th></tr></thead>
       <tbody id="cc-markers"></tbody>
     </table></div>
   </div>
@@ -190,8 +190,8 @@
   <details><summary>Batch effect: why samples from different runs need care</summary><div class="body">Samples processed on different days, by different hands, or on different sequencing runs pick up small systematic differences that have nothing to do with biology. When two conditions were sequenced separately, some of their difference could be batch, not treatment. Big, biologically coherent changes are still informative; small ones aren't.</div></details>
   <details><summary>Differentiation: what "undifferentiated vs differentiated" means</summary><div class="body">CAD cells can be kept dividing in a stem-like state, or nudged (by removing serum) to stop dividing and grow long neuron-like processes. That switch, from a proliferating cell to a mature, specialised neuron, is called differentiation, and it rewires thousands of genes: division genes go quiet, neuron-identity genes switch on.</div></details>
   <details><summary>CAD cells: what are they?</summary><div class="body">CAD cells are a mouse line derived from <strong>Cath.a</strong> cells, a central-nervous-system catecholaminergic line, the kind of neuron that makes dopamine and noradrenaline. In serum they divide; in serum-free media they stop dividing and grow neurite-like processes. That makes them a convenient, cheap model for asking what happens as a neuron matures, without needing animals.</div></details>
-  <details><summary>Replication: why two datasets of the same experiment?</summary><div class="body">Dataset ① is from this lab (1 dish per condition). Dataset ② is an independent, <strong>published</strong> study (Cevallos et al. 2025) that did the same experiment with 3 dishes per condition and deposited the results publicly. Getting the same answer from different hands, different cells and different sequencing runs is the strongest evidence a finding is real, much stronger than any single p-value. Try looking up <span class="mono">Id3</span> in both.</div></details>
-  <details><summary>Where published data lives: GEO</summary><div class="body">The <strong>Gene Expression Omnibus (GEO)</strong> is a free public archive at NCBI where researchers must deposit sequencing data when they publish. Every dataset gets an accession like <span class="mono">GSE291553</span>. Anyone can download it, which is how dataset ② got here, and how you could analyse someone else\'s experiment yourself using the upload tool above.</div></details>
+  <details><summary>Replication: why two datasets of the same experiment?</summary><div class="body">The backup data is from this lab (1 dish per condition). The other built-in dataset is an independent, <strong>published</strong> study (Cevallos et al. 2025) that did the same experiment with 3 dishes per condition and deposited the results publicly. Getting the same answer from different hands, different cells and different sequencing runs is the strongest evidence a finding is real, much stronger than any single p-value. Try looking up <span class="mono">Id3</span> in both.</div></details>
+  <details><summary>Where published data lives: GEO</summary><div class="body">The <strong>Gene Expression Omnibus (GEO)</strong> is a free public archive at NCBI where researchers must deposit sequencing data when they publish. Every dataset gets an accession like <span class="mono">GSE291553</span>. Anyone can download it, which is how the published dataset got here, and how you could analyse someone else\'s experiment yourself using the upload tool above.</div></details>
 </section>
 
 </main>

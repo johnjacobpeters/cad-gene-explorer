@@ -24,20 +24,21 @@ cad-explorer/
 
 | # | Dataset | Design | Statistics | Plot |
 |---|---|---|---|---|
-| ① **default** | This lab: undifferentiated vs differentiated | 1 dish each | none possible | MA plot |
-| ② | **Cevallos et al. 2025**, same experiment, published | 3 dishes each | DESeq2 (authors') | Volcano |
-| ③ | Whatever the student uploads | their choice | Welch t-test + BH (if replicates) | Volcano or MA |
+| ① **default** | **Cevallos et al. 2025**, published | 3 dishes each | DESeq2 (authors') | Volcano |
+| ② | Whatever the student uploads | their choice | Welch t-test + BH (if replicates) | Volcano or MA |
+| ③ **backup data** | This lab: undifferentiated vs differentiated | 1 dish each | none possible | MA plot |
 
 Students switch datasets with the chips at the top; the whole page adapts: plot type,
 themes, wording.
 
-The pairing is the pedagogical core: dataset ① has **no replicates and no p-values**, and
-dataset ② is an **independent published study of the same experiment that does**. Several
-themes invite students to check a finding in ① against ②. The headline case is `Id3`
-(an inhibitor of differentiation): down ~11× in ①, down ~288× at p ≈ 4e-32 in ②. Replication
+The pairing is the pedagogical core: the backup data has **no replicates and no p-values**,
+and the published study is an **independent study of the same experiment that does**. Several
+themes invite students to check a finding in the backup data against the published one, and the
+backup tab shows that comparison automatically. The headline case is `Id3` (an inhibitor of
+differentiation): down ~11× in the backup data, down ~288× at p ≈ 4e-32 published. Replication
 across labs is presented as stronger evidence than any single p-value.
 
-### Dataset ② provenance
+### Published dataset provenance
 
 Cevallos CA, White AL, Fazio BA, Wendt LS, Feng JW, Posfai D, Horton AL, Warrick JM,
 Quintero-Carmona OA. *Transcriptomic Analysis of CAD Cell Differentiation.*
@@ -56,15 +57,15 @@ caption says the bars are reconstructed, and the unit is labelled "norm. counts"
 The **Pathways** section asks "what *kind* of biology changed?" rather than looking at genes
 one at a time. Bars are GO Biological Process, KEGG, MSigDB Hallmark and WikiPathways terms
 from **Enrichr** (via `gseapy`); clicking a term reveals the genes driving it, and clicking a
-gene opens it in the explorer. Dataset ② additionally shows a **STRING** protein-interaction
+gene opens it in the explorer. The published dataset additionally shows a **STRING** protein-interaction
 network (87 proteins, 205 interactions, confidence ≥ 0.4) of the strongest movers, and it forms
 an unmistakable DNA-replication/cell-cycle module (hubs Cdc45, Mcm4/5/10, Orc1, Cdc6, Rrm2).
 
 Gene selection differs by dataset, and this matters:
 
-- Dataset ① (n=1) has no significance test, so it uses the **top 200 genes each direction by
+- The backup data (n=1) has no significance test, so it uses the **top 200 genes each direction by
   fold change**. Thresholding at 2× leaves only 61 genes, too few to detect a programme.
-- Dataset ② uses **all 1,150 significant up / 343 down genes**. An earlier attempt using the
+- The published dataset uses **all 1,150 significant up / 343 down genes**. An earlier attempt using the
   top 250 by fold change found almost nothing in the up direction, because ranking by fold
   change favours low-expressed genes and misses coherent programmes built from many modest
   changes. That is also why the authors used GAGE/Pathview on the full ranked list.
@@ -91,14 +92,15 @@ undifferentiated samples land in A whichever way round they appear in the file. 
 names are free-text, so any other experiment just gets renamed. On **Run analysis** it rescales to CPM, computes
 log₂ fold changes, and, if **both** groups have ≥2 replicates, runs a **Welch t-test** on
 log₂(CPM+1) with **Benjamini–Hochberg** correction; otherwise it says no statistics are
-possible and shows an MA plot. Results become a third dataset, with CSV export.
+possible and shows an MA plot. Results fill the second tab, with CSV export.
 
 **Files never leave the computer.** Parsing and statistics run entirely in the browser.
 
 ### Automatic cross-check against the published study
 
-As soon as a student's analysis finishes, a **"Does your result match the published study?"**
-section appears, comparing their result gene-by-gene against Cevallos et al. It reports:
+The cross-check panel runs on two of the three tabs: on the **backup data** tab it is always
+on, and on the **upload** tab it appears as soon as a student's analysis finishes. Either way
+it compares that dataset gene-by-gene against Cevallos et al. and reports:
 
 - **correlation** of log₂ fold changes (on the genes the published study calls significant),
 - **directional agreement**: what fraction move the same way,
@@ -109,14 +111,18 @@ section appears, comparing their result gene-by-gene against Cevallos et al. It 
   genes, with an honest verdict per gene, and
 - a plain-English summary that adapts to strong / moderate / weak agreement.
 
+The panel names its own source, so the headings, axis label, table column and verdict say
+either "your data" or "the backup data" depending on which tab is active. The published tab
+never shows it, since comparing that dataset against itself is meaningless.
+
 Two honesty features are built in. A gene where one dataset is flat and the other is large is
 labelled **"too small to tell"** rather than counted as agreement. And if the uploaded file is
 the bundled `*_SIMULATED.csv`, the panel says so loudly, because that file is derived from the
 published numbers, so it matches by construction and the comparison is circular.
 
-On the bundled *real* single-dish example this reports correlation 0.81, 85% directional
-agreement and 37× top-gene overlap, which is a fair picture of what a good pilot experiment
-looks like against a properly replicated study.
+The backup data scores correlation 0.82, 85% directional agreement and 37× top-gene overlap
+against the published study, which is a fair picture of what a good single-dish pilot looks
+like next to a properly replicated one. Uploading the equivalent CSV reproduces that.
 
 ### The statistics are validated
 
@@ -133,12 +139,12 @@ about why tools like DESeq2 share information across genes.
 
 ### The two example files
 
-- `example_undiff_vs_diff.csv`: **real** counts from dataset ①, 1 dish per condition.
+- `example_undiff_vs_diff.csv`: **real** counts from the backup data, 1 dish per condition.
   Demonstrates honestly that no statistics are possible.
 - `example_practice_SIMULATED.csv`: **simulated** triplicates drawn around the *published*
-  (dataset ②) group means with 18% lognormal noise. Labelled as simulated everywhere it is
+  (published) group means with 18% lognormal noise. Labelled as simulated everywhere it is
   offered. It exists so students can watch the statistics work end-to-end, and it gives a
-  built-in answer key: the genes it flags (Id1/Id2/Id3, Gng4, Thy1) are the ones dataset ②
+  built-in answer key: the genes it flags (Id1/Id2/Id3, Gng4, Thy1) are the ones the published study
   reports, while flat genes like Gapdh correctly come out non-significant.
 
 ## Run it locally
