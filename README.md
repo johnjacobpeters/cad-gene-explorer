@@ -184,6 +184,14 @@ you later need to put the site behind a login.
 > site. That is fine for this content, but if you ever add unpublished data, the site would
 > need to move behind an access gate (e.g. Cloudflare Pages + Cloudflare Access, free for ≤50 users).
 
+## Cache-busting
+
+`index.html` loads `style.css`, `data.js` and `app.js` with a `?v=<date>` stamp. Without it a
+browser can pair a cached `app.js` with a freshly fetched `index.html`, and a mismatch between
+the two throws a null-element error (`$(...) is null`) that surfaces in the upload status box.
+`build_explorer_data.py` refreshes the stamp on every run. If you edit `app.js` or `style.css`
+without rebuilding the data, bump the number by hand or just re-run the build script.
+
 ## Regenerating the data
 
 ```bash

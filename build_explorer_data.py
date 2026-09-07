@@ -6,7 +6,7 @@ Dataset ②           : GSE291553, Cevallos et al. 2025, published, n=3 each, DE
 Also writes the two example files offered in the upload section.
 Both datasets are publicly shareable.
 """
-import pandas as pd, numpy as np, json, os
+import pandas as pd, numpy as np, json, os, re, datetime
 
 G8  = '/Users/johnpeters/Downloads/G8M87F_results/'
 OUT = os.path.dirname(os.path.abspath(__file__)) + '/'
@@ -198,6 +198,18 @@ else:
 payload = {'datasets': [DS1, DS2]}
 with open(f'{OUT}data.js','w') as f:
     f.write('window.CAD=' + json.dumps(payload, separators=(',',':')) + ';\n')
+# Bump the cache-busting stamp on the local assets so browsers cannot pair a stale
+# app.js with a fresh index.html (that mismatch throws a null-element error).
+_ver = datetime.date.today().strftime('%Y%m%d')
+with open(f'{OUT}index.html', encoding='utf-8') as _f:
+    _html = _f.read()
+_new = re.sub(r'(href|src)="(style\.css|app\.js|data\.js)(\?v=\d+)?"',
+              lambda m: f'{m.group(1)}="{m.group(2)}?v={_ver}"', _html)
+if _new != _html:
+    with open(f'{OUT}index.html', 'w', encoding='utf-8') as _f:
+        _f.write(_new)
+    print(f'  stamped index.html assets with ?v={_ver}')
+
 print(f'\nWrote data.js ({os.path.getsize(OUT+"data.js")/1e6:.2f} MB)')
 print(f'  ① lab      : {len(genes1):>6,} genes | up {n1_up} / down {n1_dn} (>2x, no stats) | {len(sets1)} themes')
 print(f'  ② cevallos : {len(genes2):>6,} genes | up {n2_up} / down {n2_dn} (DESeq2)        | {len(sets2)} themes')
