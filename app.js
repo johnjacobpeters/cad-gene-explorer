@@ -458,12 +458,118 @@
              moved: moved.length, agreeMoved, markers, points: base };
   }
 
+  // Published group means are DESeq2 normalised counts; rescale a condition to per-million
+  // so it sits on the same scale as an uploaded CPM table.
+  function pubPerMillion(cond) {
+    const pub = DATASETS.find(d => d.id === 'cevallos');
+    if (!pub) return null;
+    let tot = 0;
+    Object.keys(pub.genes).forEach(n => { const v = pub.genes[n].cpm[cond]; if (v && v.length) tot += mean(v); });
+    if (!(tot > 0)) return null;
+    const k = 1e6 / tot, out = {};
+    Object.keys(pub.genes).forEach(n => { const v = pub.genes[n].cpm[cond]; if (v && v.length) out[n] = mean(v) * k; });
+    return out;
+  }
+
+  // With one condition there is no fold change to correlate, so compare expression profiles
+  // against the SAME condition in the published study. For a borrowed comparison that is the
+  // half which was NOT borrowed, so the two numbers stay independent.
+  function renderProfileCheck() {
+    const myId = DS.borrowed ? 'mine' : 'A';
+    const myLabel = CMAP[myId] ? CMAP[myId].label : 'your samples';
+    const sameCond = DS.myCond;                       // 'dif' or 'undiff': the student's own condition
+    const pubMap = pubPerMillion(sameCond);
+    const pubLabel = sameCond === 'dif' ? 'published differentiated' : 'published undifferentiated';
+    $('cc-h2').textContent = 'Does your ' + (sameCond === 'dif' ? 'differentiated' : 'undifferentiated')
+      + ' sample look like the published one?';
+    if (!pubMap) { $('cc-caveat').innerHTML = 'The published dataset is not available.'; return; }
+
+    const rows = [];
+    Object.keys(GENES).forEach(n => {
+      const p = pubMap[n]; if (p === undefined) return;
+      const v = mean(GENES[n].cpm[myId] || []);
+      if (Math.max(v, p) <= 1) return;
+      rows.push({ n, you: v, pub: p, lx: Math.log2(v + 1), ly: Math.log2(p + 1) });
+    });
+    if (rows.length < 30) {
+      $('cc-stats').innerHTML = ''; $('cc-markers').innerHTML = ''; $('cc-verdict').innerHTML = '';
+      $('cc-caveat').innerHTML = 'Only ' + rows.length + ' genes matched the published dataset by name, which is too few to compare.';
+      Plotly.purge('cc-plot'); return;
+    }
+    const r = pearson(rows.map(x => x.lx), rows.map(x => x.ly));
+    const within = rows.filter(x => Math.abs(x.lx - x.ly) <= 1).length / rows.length;
+    const pct = v => isNaN(v) ? '-' : (100 * v).toFixed(0) + '%';
+
+    const simWarn = DS.simulated
+      ? '<strong>⚠ This is the simulated practice file.</strong> It was generated from the published study\u2019s own numbers, '
+        + 'so it matches by construction. That shows the comparison working, not a real replication. '
+      : '';
+    $('cc-caveat').innerHTML = simWarn + (DS.borrowed
+      ? 'This compares your samples against the published <strong>' + esc(sameCond === 'dif' ? 'differentiated' : 'undifferentiated')
+        + '</strong> data, which is the half that was <em>not</em> borrowed, so the two are independent. '
+        + 'A fold-change correlation is not shown: it would share a denominator with the borrowed half and agree with itself.'
+      : 'Expression levels in your samples against the matching published condition. Both sides are counts per million.');
+    $('cc-stats').innerHTML = [
+      ['color:var(--gold)', isNaN(r) ? '-' : r.toFixed(2), 'correlation of expression<br>(log scale)'],
+      ['color:var(--green)', pct(within), 'genes within 2×<br>of the published level'],
+      ['color:var(--blue)', rows.length.toLocaleString(), 'genes compared'],
+      ['color:var(--purple)', DS.conditions[0].n, DS.conditions[0].n === 1 ? 'sample you uploaded' : 'samples you uploaded'],
+    ].map(([c, v, l]) => '<div class="stat"><div class="v" style="' + c + '">' + v + '</div><div class="l">' + l + '</div></div>').join('');
+
+    const lim = Math.ceil(Math.max(...rows.map(x => Math.max(x.lx, x.ly)))) + 0.5;
+    Plotly.react('cc-plot', [{
+      type: 'scattergl', mode: 'markers', x: rows.map(x => x.lx), y: rows.map(x => x.ly),
+      text: rows.map(x => x.n), customdata: rows.map(x => x.n),
+      hovertemplate: '<b>%{text}</b><br>yours %{x:.2f}<br>published %{y:.2f}<extra></extra>',
+      marker: { color: CSSV('--purple'), size: 4, opacity: .45 },
+    }], Object.assign({}, PLOT, {
+      xaxis: { title: 'your ' + myLabel + ' (log₂ CPM+1)', gridcolor: GRID, zerolinecolor: ZERO, range: [0, lim] },
+      yaxis: { title: pubLabel + ' (log₂ CPM+1)', gridcolor: GRID, zerolinecolor: ZERO, range: [0, lim] },
+      margin: { t: 16, r: 20, b: 55, l: 65 }, hovermode: 'closest', showlegend: false,
+      shapes: [{ type: 'line', x0: 0, y0: 0, x1: lim, y1: lim, line: { color: 'rgba(111,66,193,.5)', dash: 'dash', width: 1.5 } }],
+    }), CFG);
+    if (!$('cc-plot').__wired) { $('cc-plot').on('plotly_click', e => { const p = e.points && e.points[0]; if (p && p.customdata) showGene(p.customdata, true); }); $('cc-plot').__wired = 1; }
+
+    const hr = $('cc-head-row');
+    if (hr) hr.innerHTML = '<th>Gene</th><th>What it is</th><th>Your ' + esc(UNIT()) + '</th><th>Published ' + esc(UNIT()) + '</th><th>Similar?</th>';
+    $('cc-markers').innerHTML = LANDMARKS.map(([g, what]) => {
+      const row = rows.find(x => x.n.toUpperCase() === g.toUpperCase());
+      if (!row) return '';
+      const close = Math.abs(row.lx - row.ly) <= 1;
+      const tick = close ? '<span class="pill pill-new">✓ within 2×</span>' : '<span class="pill pill-ns">differs</span>';
+      return '<tr class="rowlink" data-g="' + esc(row.n) + '"><td class="mono" style="font-weight:600">' + esc(row.n) + '</td>'
+        + '<td class="hint">' + esc(what) + '</td><td class="mono">' + fmtN(row.you) + '</td>'
+        + '<td class="mono">' + fmtN(row.pub) + '</td><td>' + tick + '</td></tr>';
+    }).join('');
+    $('cc-markers').querySelectorAll('tr').forEach(t => t.addEventListener('click', () => pick(t.dataset.g)));
+
+    let colr, head, body;
+    if (r >= 0.8 && within >= 0.6) {
+      colr = 'var(--green)'; head = 'Your sample looks like the published one.';
+      body = 'Correlation ' + r.toFixed(2) + ' across ' + rows.length.toLocaleString() + ' genes, with ' + pct(within)
+        + ' within 2× of the published level. The sequencing produced a profile consistent with an independent lab.';
+    } else if (r >= 0.6) {
+      colr = 'var(--gold)'; head = 'Broadly similar, with real differences.';
+      body = 'Correlation ' + r.toFixed(2) + ', ' + pct(within) + ' within 2×. The overall profile matches, but a fair number of genes sit well off the line. '
+        + 'Expect some of that from a different lab and library prep; large systematic gaps are worth a look.';
+    } else {
+      colr = 'var(--muted)'; head = 'The profiles do not match closely.';
+      body = 'Correlation ' + (isNaN(r) ? 'not estimable' : r.toFixed(2)) + ' with only ' + pct(within) + ' within 2×. '
+        + 'That can mean a different cell state, a technical problem with the run, or gene names that did not line up.';
+    }
+    $('cc-verdict').innerHTML = '<div class="verdict" style="border-color:' + colr + '"><strong>' + head + '</strong> ' + body + '</div>';
+  }
+
   function renderCrossCheck() {
     const sec = $('crosscheck'), nav = $('nav-crosscheck');
-    const show = DS && !DS.singleGroup && !DS.borrowed && (DS.id === 'upload' || DS.id === 'lab');
+    const profile = !!(DS && (DS.singleGroup || DS.borrowed) && DS.myCond);
+    const show = DS && (profile || (!DS.singleGroup && !DS.borrowed && (DS.id === 'upload' || DS.id === 'lab')));
     sec.classList.toggle('hidden', !show); if (nav) nav.classList.toggle('hidden', !show);
     if (!show) return;
+    if (profile) { renderProfileCheck(); return; }
     const pct = v => isNaN(v) ? '-' : (100 * v).toFixed(0) + '%';
+    const hrow = $('cc-head-row');
+    if (hrow) hrow.innerHTML = '<th>Gene</th><th>What it is</th><th id="cc-th-you">Your log\u2082FC</th><th>Published log\u2082FC</th><th>Agree?</th>';
     // the same panel serves an uploaded file and the built-in backup data, so it says which
     const isUp = DS.id === 'upload';
     const MINE = isUp ? 'your data' : 'the backup data';
@@ -695,7 +801,8 @@
       const hkB = HK.filter(h => genesB[h]);
       if (hkB.length) setsB.push({ title: 'Housekeeping genes', desc: '', genes: hkB });
       const dsB = {
-        id: 'upload', borrowed: true, simulated: /SIMULATED/i.test(UP.fname || ''),
+        id: 'upload', borrowed: true, myCond: mineIsDiff ? 'dif' : 'undiff',
+        simulated: /SIMULATED/i.test(UP.fname || ''),
         chipLabel: '② ' + (UP.fname.length > 22 ? UP.fname.slice(0, 20) + '…' : UP.fname),
         title: 'Your data vs the published study',
         tagline: `${UP.fname} · ${idx0.length} sample${idx0.length === 1 ? '' : 's'} · ${sharedB.length.toLocaleString()} shared genes · both sides rescaled to counts per million`,
@@ -741,7 +848,9 @@
       const hk1 = HK.filter(h => genes1[h]);
       if (hk1.length) sets1.push({ title: 'Housekeeping genes', desc: '', genes: hk1 });
       const ds1 = {
-        id: 'upload', singleGroup: true, simulated: /SIMULATED/i.test(UP.fname || ''),
+        id: 'upload', singleGroup: true,
+        myCond: ($('up-borrow-side') && $('up-borrow-side').value) || 'dif',
+        simulated: /SIMULATED/i.test(UP.fname || ''),
         chipLabel: '② ' + (UP.fname.length > 22 ? UP.fname.slice(0, 20) + '…' : UP.fname),
         title: 'Your data: ' + nm,
         tagline: `${UP.fname} · ${idx.length} sample${idx.length === 1 ? '' : 's'} · ${names.length.toLocaleString()} expressed genes · one condition only`,
