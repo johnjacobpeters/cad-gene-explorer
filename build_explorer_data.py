@@ -44,19 +44,19 @@ n1_up, n1_dn = int((pc1.lfc > CUT1).sum()), int((pc1.lfc < -CUT1).sum())
 
 SETS1 = [
  ('ID inhibitors & TGF-β: the master switch',
-  'ID proteins actively BLOCK differentiation. Watch them collapse: losing Id1/Id2/Id3 is the molecular event that lets the cell mature. The published study sees exactly the same thing.',
+  '',
   ['Id1','Id2','Id3','Id4','Tgfb1','Smad6','Smad7','Fst','Fstl3','Ngfr','Dkk1']),
  ('Neuron identity markers: already on',
-  'The surprise: these barely change. CAD cells are ALREADY neuron-like before differentiation, so the switch is not "become a neuron from scratch". It is "stop dividing and mature". Pcp4 and Gng4 are the ones that do rise.',
+  '',
   ['Tubb3','Map2','Syp','Snap25','Gap43','Stmn2','Eno2','Th','Dbh','Pcp4','Gng4','Nsg2']),
  ('Cell division: easing off',
-  'Differentiated neurons stop dividing, and these genes do fall, but gently. Compare the magnitudes with the published study, which had replicates and could prove it.',
+  '',
   ['Cdk1','Ccnb1','Mki67','Top2a','Pcna','Rrm2','Aurka','Ccnd1','Ccne2']),
  ('Stress & cholesterol: switched on',
-  'Differentiation is metabolically demanding. Cholesterol-synthesis genes (neurons need lots of membrane) and stress-response genes rise.',
+  '',
   ['G0s2','Ddit3','Trib3','Atf3','Acss2','Pmvk','Mvd','Cd74','Ptgds','Igfbp6','Nupr1','Niban1']),
  ('Housekeeping genes: a built-in health check',
-  'Genes every cell needs constantly. Here they are beautifully flat (all within ~1.3x), exactly what healthy, deliberate differentiation looks like, and a sign the two samples are technically comparable.',
+  '',
   ['Actb','Gapdh','Rplp0','Ppia','B2m','Tbp']),
 ]
 sets1 = keep_sets(SETS1, genes1, 'lab')
@@ -65,13 +65,7 @@ DS1 = {
  'id':'lab', 'chipLabel':'③ Backup data (1 dish each)',
  'title':'Backup data: what happens when a cell becomes a neuron?',
  'tagline':'Backup data · mouse CAD cells · undifferentiated vs differentiated · 1 dish each · descriptive comparison (no statistics)',
- 'intro': ('<p><strong style="color:var(--text)">CAD cells</strong> are a mouse line derived from catecholaminergic neurons. '
-   'In serum they divide in an immature state. Remove the serum and they <span class="term" title="Stop dividing and mature into a specialised cell type.">differentiate</span>: '
-   'they stop dividing and grow long neuron-like processes.</p>'
-   '<p>Here one dish of each was sequenced. Your job: work out which genes drive that switch. '
-   'Start with <strong style="color:var(--gold)">Id2</strong> or <strong style="color:var(--gold)">Id3</strong>. They tell the clearest story.</p>'
-   '<p class="hint">⚠ One dish per condition means <strong>no p-values are possible</strong>. Everything here is descriptive. '
-   'When you find something interesting, check it against the published study, which ran the same experiment <em>with</em> replicates.</p>'),
+ 'intro':'',
  'conditions': [
    {'id':'undiff','label':'Undifferentiated','short':'Undiff','color':'#a78bfa','n':1,'desc':'CAD cells growing in serum, dividing and immature.'},
    {'id':'dif','label':'Differentiated','short':'Diff','color':'#00b894','n':1,'desc':'Serum removed for 5 days, so cells stop dividing and mature.'}],
@@ -109,22 +103,22 @@ n2_up, n2_dn = int((sig2.log2FoldChange > 0).sum()), int((sig2.log2FoldChange < 
 
 SETS2 = [
  ('ID inhibitors: the same master switch, now with statistics',
-  'The identical result as the backup data, but with 3 dishes per condition and real p-values. Id3 falls ~290x (p ≈ 4e-32). This is what replication looks like.',
+  '',
   ['Id1','Id2','Id3','Id4','Ngfr','Dkk1','Tgfb1','Smad6','Smad7']),
  ('Neuronal genes switched ON',
-  'With more statistical power, the published study detects the neuronal program the single-dish experiment could only hint at: ion channels, synapse proteins and axon-growth genes all rise.',
+  '',
   ['Snap25','Gap43','Nrxn1','Nlgn2','Scn3a','Cacna1b','Thy1','Gng4','Pcp4','Lamp5','Tubb3','Syt1','Stmn2']),
  ('Cell division: shutting down',
-  'Differentiating neurons exit the cell cycle. Every one of these falls significantly.',
+  '',
   ['Cdk1','Ccnb1','Mki67','Top2a','Pcna','Rrm2','Cdc45','Aurka','Ccne2','Mcm2']),
  ('Biggest increases',
-  'The strongest inductions in the published data: extracellular-matrix and membrane genes as the cells build neurites.',
+  '',
   ['Fmod','Thy1','Fa2h','Cilp','Foxs1','Panx3','Lamp5','G0s2']),
  ('Biggest decreases',
-  'The strongest losses. Note Id3 and Id2 near the top, plus Dbh and Sctr, the same genes the backup data flagged.',
+  '',
   ['Galnt5','Id3','Id2','Dbh','Tbx3','Sctr','Cux2','Adamtsl2','Myrip','Ptprq']),
  ('Housekeeping genes: a built-in health check',
-  'Genes every cell needs constantly. They shift only slightly (well under 2x) even though the p-values are tiny, a reminder that with enough replicates, statistically significant does not mean biologically large.',
+  '',
   ['Actb','Gapdh','Rplp0','Ppia','B2m','Tbp']),
 ]
 sets2 = keep_sets(SETS2, genes2, 'cevallos')
@@ -133,14 +127,7 @@ DS2 = {
  'id':'cevallos', 'chipLabel':'① Published study (n=3 each)',
  'title':'The same experiment, published: Cevallos et al. 2025',
  'tagline':'Mouse CAD cells · undifferentiated vs differentiated · 3 dishes each · DESeq2 results from GEO GSE291553',
- 'intro': ('<p>An independent group ran the same experiment properly replicated: <strong style="color:var(--text)">3 dishes per condition</strong>, '
-   'differentiated for 5 days in serum-free media, and deposited the results publicly.</p>'
-   '<p>Because there are replicates, this dataset has <strong style="color:var(--gold)">real p-values</strong>. '
-   'Use it to check anything you found in the backup data. Start with <strong style="color:var(--gold)">Id3</strong>.</p>'
-   '<p class="hint">Source: Cevallos CA, White AL, Fazio BA, Wendt LS, Feng JW, Posfai D, Horton AL, Warrick JM, Quintero-Carmona OA. '
-   '<em>Transcriptomic Analysis of CAD Cell Differentiation.</em> microPublication Biology, 2025. Data: '
-   '<a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE291553" target="_blank" rel="noopener" style="color:var(--gold)">GEO GSE291553</a>. '
-   'The authors published a summary table, so the two bars are <strong>group averages reconstructed</strong> from it. The fold changes and p-values are theirs.</p>'),
+ 'intro':'',
  'conditions': [
    {'id':'undiff','label':'Undifferentiated','short':'Undiff','color':'#a78bfa','n':3,'desc':'CAD cells in serum, dividing. 3 dishes.'},
    {'id':'dif','label':'Differentiated','short':'Diff','color':'#00b894','n':3,'desc':'5 days serum-free (DMEM/F12 + ITS), neurite-like processes. 3 dishes.'}],

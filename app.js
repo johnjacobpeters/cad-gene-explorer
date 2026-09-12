@@ -59,7 +59,6 @@
   }
   function renderIntro() {
     $('ds-title').textContent = DS.title; $('ds-tagline').textContent = DS.tagline || '';
-    $('ds-intro').innerHTML = DS.intro || '';
     $('cond-legend').innerHTML = CONDS.map(c => `<span title="${esc(c.desc || '')}"><i style="background:${c.color}"></i>${esc(c.label)} <span class="hint">(n=${c.n})</span></span>`).join('');
     $('s-genes').textContent = DS.summary.nGenes.toLocaleString();
     $('s-up').textContent = DS.summary.nUp.toLocaleString(); $('s-dn').textContent = DS.summary.nDn.toLocaleString();
@@ -205,11 +204,9 @@
     PRIM = { x, y, n, col };
     if (P.hasStats) {
       $('primary-title').textContent = 'Volcano plot: every gene at once';
-      $('primary-desc').innerHTML = `Each dot is one gene. <strong style="color:var(--text)">Left/right</strong> = how much it changed (${esc(P.label)}, log₂ fold change). <strong style="color:var(--text)">Up</strong> = how confident we are it's real (−log₁₀ adjusted p-value). The most trustworthy hits live in the top corners. <strong style="color:var(--gold)">Click any dot</strong> to load that gene.`;
       $('primary-legend').innerHTML = `Red = significantly up in ${esc(P.numShort)} · Blue = significantly down · Grey = no significant change · Dashed line = p<sub>adj</sub> 0.05`;
     } else {
       $('primary-title').textContent = 'MA plot: every gene at once (no p-values with n=1)';
-      $('primary-desc').innerHTML = `Each dot is one gene. <strong style="color:var(--text)">Up/down</strong> = how much it changed (${esc(P.label)}, log₂ fold change). <strong style="color:var(--text)">Left/right</strong> = how strongly it's expressed overall. With one dish per condition there are no p-values, so trust the dots on the <em>right</em> (well-measured) more than the ones on the left. <strong style="color:var(--gold)">Click any dot</strong> to load that gene.`;
       $('primary-legend').innerHTML = `Red = more than ${fold(EXPL_CUT).toFixed(1)}× higher in ${esc(P.numShort)} · Blue = more than ${fold(EXPL_CUT).toFixed(1)}× lower · Grey = smaller change`;
     }
     drawPrimary();
@@ -246,7 +243,7 @@
     const S = DS.secondary, sec = $('compare'), nav = $('nav-compare');
     if (!S) { sec.classList.add('hidden'); nav.classList.add('hidden'); SEC = null; return; }
     sec.classList.remove('hidden'); nav.classList.remove('hidden');
-    $('sec-title').textContent = S.title; $('sec-desc').innerHTML = S.desc; $('sec-note').innerHTML = S.warn || '';
+    $('sec-title').textContent = S.title; $('sec-note').innerHTML = S.warn || '';
     const P = DS.primary, x = [], y = [], n = [], col = [];
     NAMES.forEach(name => { const s = geneStats(name); if (!(s.m[P.num] > 2 || s.m[P.den] > 2 || s.m[S.num] > 2)) return; x.push(s.lfcP); y.push(s.lfcS); n.push(name); col.push(s.lfcP > EXPL_CUT ? '#e05252' : s.lfcP < -EXPL_CUT ? '#4a90d9' : '#454b6e'); });
     SEC = { x, y, n, col }; drawSecondary();
@@ -272,7 +269,7 @@
   }
   function renderTheme(set) {
     const P = DS.primary, S = DS.secondary;
-    $('theme-panel').classList.remove('hidden'); $('theme-title').textContent = set.title; $('theme-desc').textContent = set.desc || '';
+    $('theme-panel').classList.remove('hidden'); $('theme-title').textContent = set.title;
     $('theme-head').innerHTML = `<th>Gene</th><th>${esc(CMAP[P.den].short)}</th><th>${esc(CMAP[P.num].short)}</th>${S ? `<th>${esc(CMAP[S.num].short)}</th>` : ''}<th>${esc(P.numShort)} vs ${esc(P.denShort)}</th>${S ? `<th>${esc(S.numShort)} vs ${esc(S.denShort)}</th>` : ''}<th>Verdict</th>`;
     $('theme-tbody').innerHTML = set.genes.filter(g => GENES[g]).map(g => {
       const s = geneStats(g), sc = sigClass(s);
@@ -479,30 +476,16 @@
     const MINE_CAP = isUp ? 'Your' : 'The backup data\u2019s';
     $('cc-h2').textContent = isUp ? 'Does your result match the published study?'
                                   : 'Does the backup data match the published study?';
-    $('cc-lead').innerHTML = (isUp
-      ? 'Your uploaded data is compared, gene by gene, against '
-      : 'This lab\u2019s single-dish backup data is compared, gene by gene, against ')
-      + '<strong style="color:var(--text)">Cevallos et al. 2025</strong>, an independent published experiment on the same cells. '
-      + (isUp ? 'Agreement between two separate labs is the strongest evidence a finding is real.'
-              : 'With one dish per condition there are no p-values here, so agreement with an independent lab is the only real evidence available.');
-    $('cc-plotdesc').innerHTML = 'Each dot is a gene. <strong style="color:var(--text)">Across</strong> = how much it changed in '
-      + '<em>' + MINE + '</em>. <strong style="color:var(--text)">Up</strong> = how much it changed in the published study. '
-      + 'If the two experiments agree, dots line up along the <span style="color:var(--gold)">gold diagonal</span>. '
-      + 'Dots in the top-right and bottom-left quadrants agree in direction; the other two quadrants disagree. '
-      + '<strong style="color:var(--gold)">Click a dot</strong> to open that gene.';
     $('cc-th-you').textContent = isUp ? 'Your log\u2082FC' : 'Backup log\u2082FC';
-    $('cc-lm-desc').textContent = 'These are the genes the published study reports most strongly. Does '
-      + MINE + ' reproduce them?';
     const cc = computeCrossCheck(DS);
     if (!cc || cc.tooFew) {
       $('cc-stats').innerHTML = '';
-      $('cc-caveat').innerHTML = 'Only ' + ((cc && cc.n) || 0) + ' genes in ' + MINE + ' matched the published mouse dataset by name, which is too few to compare. This usually means a different organism, or gene IDs (like ENSMUSG…) instead of gene symbols.';
+      $('cc-caveat').innerHTML = 'Too few matching genes to compare.';
       $('cc-markers').innerHTML = ''; $('cc-verdict').innerHTML = ''; Plotly.purge('cc-plot'); return;
     }
     $('cc-caveat').innerHTML = DS.simulated
       ? '<strong>⚠ This file is the simulated practice dataset.</strong> It was generated <em>from</em> the published study\'s own numbers, so it will match almost perfectly by construction. That is circular: it shows the comparison working, not a real replication. Upload genuine data to get a meaningful answer.'
-      : 'Matched <strong>' + cc.n.toLocaleString() + '</strong> genes by name against the published study. '
-        + 'Different experiments, cells and sequencing runs, so agreement here is meaningful, and disagreement on weakly-expressed genes is normal.';
+      : '';
     $('cc-stats').innerHTML = [
       ['color:var(--gold)', isNaN(cc.rSig) ? (isNaN(cc.rAll) ? '-' : cc.rAll.toFixed(2)) : cc.rSig.toFixed(2),
        isNaN(cc.rSig) ? 'correlation (all genes)' : 'correlation on their strong genes'],
@@ -530,9 +513,6 @@
         shapes: [{ type: 'line', x0: -lim, y0: -lim, x1: lim, y1: lim, line: { color: 'rgba(245,200,66,.5)', dash: 'dash', width: 1.5 } }],
       }), CFG);
     if (!$('cc-plot').__wired) { $('cc-plot').on('plotly_click', e => { const p = e.points && e.points[0]; if (p && p.customdata) showGene(p.customdata, true); }); $('cc-plot').__wired = 1; }
-    $('cc-quad').innerHTML = 'Gold dots are the ' + cc.points.filter(r => r.pubP != null && r.pubP < 0.05 && Math.abs(r.pub) > 1).length
-      + ' genes the published study calls significant. Those are the ones worth judging agreement on. '
-      + 'Of the ' + cc.moved.toLocaleString() + ' genes that moved appreciably in <em>both</em> experiments, <strong>' + pct(cc.agreeMoved) + '</strong> moved the same way.';
 
     // landmark table
     $('cc-markers').innerHTML = cc.markers.map(m => {
