@@ -1,0 +1,54 @@
+[
+ {
+  "term": "RNA-seq: what is actually being measured?",
+  "text": "Every cell constantly copies its active genes into RNA. RNA-seq collects all of that RNA, reads it, and counts how many reads came from each gene. More reads = the gene is more \"on\". It's a snapshot of what the cell is doing, not what it could do."
+ },
+ {
+  "term": "CPM: counts per million",
+  "text": "Different dishes get different numbers of total reads (one might have 15 million, another 3 million). To compare fairly, each gene's count is scaled to \"per million reads\". CPM is the number on the y-axis of the gene chart. Roughly: under 1 = basically off, 10–100 = solidly on, 1000+ = a heavy hitter."
+ },
+ {
+  "term": "Replicates: why the number of dots matters",
+  "text": "A replicate is an independent dish treated the same way. Replicates tell you how much a gene wobbles naturally. With several dishes per condition we can ask \"is the difference bigger than the wobble?\" That's a statistical test. With only one dish per condition there's no wobble to measure, so we can only describe a difference, not test it. The undifferentiated-vs-differentiated dataset is exactly that situation."
+ },
+ {
+  "term": "log₂ fold change: the \"how much\" number",
+  "text": "Fold change is the ratio: treated ÷ control. We take log₂ so up and down are symmetric: +1 = doubled, +2 = 4×, +3 = 8×; −1 = halved, −3 = one-eighth. A log₂FC of −3.5 means the gene dropped to about 1/11th of its starting level."
+ },
+ {
+  "term": "p-value and adjusted p-value: the \"how sure\" number",
+  "text": "A p-value is the chance you'd see a difference this big by luck if nothing were really going on. Small = convincing. But we test ~13,000 genes at once, so some will look convincing by luck alone. The adjusted p-value (also called FDR) corrects for that. We call a gene \"significant\" when adjusted p < 0.05 and it changed at least 2× (|log₂FC| > 1)."
+ },
+ {
+  "term": "DESeq2 vs the t-test used for your own data",
+  "text": "DESeq2 is the standard tool for asking \"which genes really changed?\" It models count noise carefully and borrows information across genes, which makes it reliable even with few replicates. The Welch t-test this page runs on uploaded data is a simpler cousin: it compares the two groups' averages relative to their spread, gene by gene. It captures the idea, and it's what you'd learn in an intro stats course, but for a real paper you'd use DESeq2 or edgeR."
+ },
+ {
+  "term": "Volcano plot: reading it in 10 seconds",
+  "text": "Left–right is effect size, up is confidence. The shape looks like an erupting volcano because big changes tend to be confident changes. Look at the top-left and top-right: those genes changed a lot and we're sure about it. Dots near the bottom middle are noise. You only get a volcano when there are replicates to compute p-values from."
+ },
+ {
+  "term": "MA plot: the volcano's cousin for n=1",
+  "text": "With one dish per condition there are no p-values, so instead we plot each gene's fold change (up–down) against how strongly it's expressed overall (left–right). Genes far up or down changed a lot. Trust the ones on the right more: highly expressed genes are measured precisely, while a \"10× change\" in a gene with 2 reads is mostly noise."
+ },
+ {
+  "term": "Batch effect: why samples from different runs need care",
+  "text": "Samples processed on different days, by different hands, or on different sequencing runs pick up small systematic differences that have nothing to do with biology. When two conditions were sequenced separately, some of their difference could be batch, not treatment. Big, biologically coherent changes are still informative; small ones aren't."
+ },
+ {
+  "term": "Differentiation: what \"undifferentiated vs differentiated\" means",
+  "text": "CAD cells can be kept dividing in a stem-like state, or nudged (by removing serum) to stop dividing and grow long neuron-like processes. That switch, from a proliferating cell to a mature, specialised neuron, is called differentiation, and it rewires thousands of genes: division genes go quiet, neuron-identity genes switch on."
+ },
+ {
+  "term": "CAD cells: what are they?",
+  "text": "CAD cells are a mouse line derived from Cath.a cells, a central-nervous-system catecholaminergic line, the kind of neuron that makes dopamine and noradrenaline. In serum they divide; in serum-free media they stop dividing and grow neurite-like processes. That makes them a convenient, cheap model for asking what happens as a neuron matures, without needing animals."
+ },
+ {
+  "term": "Replication: why two datasets of the same experiment?",
+  "text": "One dataset you will see is from this lab, with a single dish per condition. The other is an independent, published study (Cevallos et al. 2025) that ran the same experiment with 3 dishes per condition and deposited the results publicly. Getting the same answer from different hands, different cells and different sequencing runs is the strongest evidence a finding is real, much stronger than any single p-value. Look up Id3 in both and compare."
+ },
+ {
+  "term": "Where published data lives: GEO",
+  "text": "The Gene Expression Omnibus (GEO) is a free public archive at NCBI where researchers must deposit sequencing data when they publish. Every dataset gets an accession like GSE291553. Anyone can download it, which is how the published dataset reached this lab, and how you could analyse someone else's experiment yourself."
+ }
+]
