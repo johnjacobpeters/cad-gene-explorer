@@ -13,7 +13,10 @@
   const fmtX = l => { const f = fold(l); return f >= 10 ? f.toFixed(0) + '×' : f.toFixed(1) + '×'; };
   const fmtN = v => isNaN(v) ? '-' : v.toFixed(1);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const PLOT = { paper_bgcolor: '#171b2e', plot_bgcolor: '#171b2e', font: { color: '#e4e7f7', family: 'Inter,sans-serif' } };
+  // Chart colours come from the CSS variables, so restyling the site only means editing style.css.
+  const CSSV = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const GRID = CSSV('--grid'), ZERO = CSSV('--zero'), ACCENT = CSSV('--gold'), DIM = CSSV('--dim');
+  const PLOT = { paper_bgcolor: CSSV('--s1'), plot_bgcolor: CSSV('--s1'), font: { color: CSSV('--text'), family: 'Inter,sans-serif' } };
   const CFG = { responsive: true, displayModeBar: false };
   let EXPL_CUT = 1.5;     // |log2FC| threshold when there are no statistics (per-dataset)
   const UNIT = () => (DS && DS.unit) || 'CPM';        // expression unit label (per-dataset)
@@ -155,13 +158,13 @@
     const xs = [], ys = [], cols = [], txt = [], U = UNIT();
     if (!NOREP()) CONDS.forEach((c, i) => { const arr = s.g.cpm[c.id] || []; arr.forEach((v, j) => { xs.push(i + (j - (arr.length - 1) / 2) * 0.14); ys.push(v); cols.push(c.color); txt.push(`${c.label} · dish ${j + 1}<br>${v.toFixed(1)} ${U}`); }); });
     const traces = [{ type: 'bar', x: CONDS.map((c, i) => i), y: CONDS.map(c => s.m[c.id]), marker: { color: CONDS.map(c => c.color), opacity: NOREP() ? .75 : .45 }, name: NOREP() ? 'group average' : 'average', hovertemplate: 'average %{y:.1f} ' + U + '<extra></extra>', width: .6 }];
-    if (!NOREP()) traces.push({ type: 'scatter', mode: 'markers', x: xs, y: ys, text: txt, hoverinfo: 'text', marker: { color: cols, size: 12, line: { width: 2, color: '#0f1220' } }, name: 'each dish' });
+    if (!NOREP()) traces.push({ type: 'scatter', mode: 'markers', x: xs, y: ys, text: txt, hoverinfo: 'text', marker: { color: cols, size: 12, line: { width: 2, color: CSSV('--s1') } }, name: 'each dish' });
     const note = $('chart-note'); if (note) note.innerHTML = NOREP()
       ? 'Bars are <strong>group averages reconstructed</strong> from the published summary table. The individual dish values were not deposited, so no dots are shown.'
       : 'Bars = average · dots = each individual dish (replicate)';
     Plotly.react('gene-chart', traces, Object.assign({}, PLOT, {
-      xaxis: { tickvals: CONDS.map((c, i) => i), ticktext: CONDS.map(c => c.label), gridcolor: '#2a3052', range: [-0.6, CONDS.length - 0.4] },
-      yaxis: { title: logScale ? U + ' (log scale)' : U, type: logScale ? 'log' : 'linear', gridcolor: '#2a3052', rangemode: 'tozero' },
+      xaxis: { tickvals: CONDS.map((c, i) => i), ticktext: CONDS.map(c => c.label), gridcolor: GRID, range: [-0.6, CONDS.length - 0.4] },
+      yaxis: { title: logScale ? U + ' (log scale)' : U, type: logScale ? 'log' : 'linear', gridcolor: GRID, rangemode: 'tozero' },
       showlegend: !NOREP(), legend: { orientation: 'h', y: 1.15, bgcolor: 'rgba(0,0,0,0)' }, margin: { t: 30, r: 20, b: 55, l: 60 }, hovermode: 'closest'
     }), CFG);
   }
@@ -172,22 +175,22 @@
       if (s.de && s.de.padj < 0.05 && Math.abs(s.de.lfc) > 1) {
         out.push(`<div class="verdict" style="border-color:${s.de.lfc > 0 ? '#e05252' : '#4a90d9'}"><strong>This gene changed significantly.</strong> It is about <strong>${fmtX(s.de.lfc)} ${s.de.lfc > 0 ? 'higher' : 'lower'}</strong> in ${esc(nn.label)} than in ${esc(nd.label)} (${fmtN(den)} → ${fmtN(num)} ${UNIT()}). Adjusted p = ${fmtP(s.de.padj)} from ${nd.n} vs ${nn.n} dishes, so this is very unlikely to be luck.${P.statsNote ? ' <span class="hint">' + esc(P.statsNote) + '</span>' : ''}</div>`);
       } else if (s.de) {
-        out.push(`<div class="verdict" style="border-color:#8a90b3"><strong>No significant change.</strong> ${esc(nd.label)} ${fmtN(den)} vs ${esc(nn.label)} ${fmtN(num)} ${UNIT()} (log₂FC ${s.de.lfc > 0 ? '+' : ''}${s.de.lfc.toFixed(2)}, adjusted p = ${fmtP(s.de.padj)}). Any difference is within the natural dish-to-dish wobble, or smaller than the 2× cutoff.</div>`);
+        out.push(`<div class="verdict" style="border-color:var(--muted)"><strong>No significant change.</strong> ${esc(nd.label)} ${fmtN(den)} vs ${esc(nn.label)} ${fmtN(num)} ${UNIT()} (log₂FC ${s.de.lfc > 0 ? '+' : ''}${s.de.lfc.toFixed(2)}, adjusted p = ${fmtP(s.de.padj)}). Any difference is within the natural dish-to-dish wobble, or smaller than the 2× cutoff.</div>`);
       } else {
-        out.push(`<div class="verdict" style="border-color:#8a90b3"><strong>Not enough reads to test.</strong> This gene is expressed too weakly to judge reliably.</div>`);
+        out.push(`<div class="verdict" style="border-color:var(--muted)"><strong>Not enough reads to test.</strong> This gene is expressed too weakly to judge reliably.</div>`);
       }
     } else {
       const big = Math.abs(s.lfcP) > EXPL_CUT, hi = Math.max(den, num);
       if (big) out.push(`<div class="verdict" style="border-color:${s.lfcP > 0 ? '#e05252' : '#4a90d9'}"><strong>This gene is about ${fmtX(s.lfcP)} ${s.lfcP > 0 ? 'higher' : 'lower'} in ${esc(nn.label)}</strong> than in ${esc(nd.label)} (${fmtN(den)} → ${fmtN(num)} ${UNIT()}). With <strong>one dish per condition there is no statistical test</strong>, so this is an observation to follow up, not a proven result.${hi < 10 ? ' And it is weakly expressed, so the ratio is noisy: treat with extra caution.' : ' It is solidly expressed, which makes the ratio more trustworthy.'}</div>`);
-      else out.push(`<div class="verdict" style="border-color:#8a90b3"><strong>Little change.</strong> ${esc(nd.label)} ${fmtN(den)} vs ${esc(nn.label)} ${fmtN(num)} ${UNIT()} (log₂FC ${s.lfcP > 0 ? '+' : ''}${s.lfcP.toFixed(2)}), below the ${fold(EXPL_CUT).toFixed(1)}× line we use for "worth noticing" when there are no replicates.</div>`);
+      else out.push(`<div class="verdict" style="border-color:var(--muted)"><strong>Little change.</strong> ${esc(nd.label)} ${fmtN(den)} vs ${esc(nn.label)} ${fmtN(num)} ${UNIT()} (log₂FC ${s.lfcP > 0 ? '+' : ''}${s.lfcP.toFixed(2)}), below the ${fold(EXPL_CUT).toFixed(1)}× line we use for "worth noticing" when there are no replicates.</div>`);
     }
     if (S) {
       const sd = s.m[S.den], sn = s.m[S.num], big = Math.abs(s.lfcS) > EXPL_CUT, oldBig = Math.abs(s.lfcP) > EXPL_CUT;
       if (big) out.push(`<div class="verdict" style="border-color:#00b894"><strong>${esc(CMAP[S.num].label)} looks different from ${esc(CMAP[S.den].label)} here</strong>, about ${fmtX(s.lfcS)} ${s.lfcS > 0 ? 'higher' : 'lower'} (${fmtN(sd)} → ${fmtN(sn)} ${UNIT()}). ${esc(S.note)}</div>`);
       else out.push(`<div class="verdict" style="border-color:#00b894"><strong>${esc(CMAP[S.num].label)} looks about the same as ${esc(CMAP[S.den].label)}</strong> for this gene (${fmtN(sd)} vs ${fmtN(sn)} ${UNIT()}).</div>`);
-      if (oldBig && !big) out.push(`<div class="verdict" style="border-color:#f5c842"><strong>The key contrast:</strong> ${esc(nn.label)} moved this gene a lot, ${esc(CMAP[S.num].label)} barely touched it. ${esc(S.contrastNote || '')}</div>`);
-      else if (oldBig && big && Math.sign(s.lfcP) === Math.sign(s.lfcS)) out.push(`<div class="verdict" style="border-color:#f5c842"><strong>Both moved this gene the same way.</strong> Because they were sequenced in different batches, agreement like this is <em>more</em> believable, since it points to a shared effect.</div>`);
-      else if (!oldBig && big) out.push(`<div class="verdict" style="border-color:#f5c842"><strong>Only ${esc(CMAP[S.num].label)} moved this gene.</strong> Interesting, but with one sample in a separate batch, this is exactly the kind of change that could also be a batch effect. The way to find out: repeat with replicates.</div>`);
+      if (oldBig && !big) out.push(`<div class="verdict" style="border-color:var(--gold)"><strong>The key contrast:</strong> ${esc(nn.label)} moved this gene a lot, ${esc(CMAP[S.num].label)} barely touched it. ${esc(S.contrastNote || '')}</div>`);
+      else if (oldBig && big && Math.sign(s.lfcP) === Math.sign(s.lfcS)) out.push(`<div class="verdict" style="border-color:var(--gold)"><strong>Both moved this gene the same way.</strong> Because they were sequenced in different batches, agreement like this is <em>more</em> believable, since it points to a shared effect.</div>`);
+      else if (!oldBig && big) out.push(`<div class="verdict" style="border-color:var(--gold)"><strong>Only ${esc(CMAP[S.num].label)} moved this gene.</strong> Interesting, but with one sample in a separate batch, this is exactly the kind of change that could also be a batch effect. The way to find out: repeat with replicates.</div>`);
     }
     return out.join('');
   }
@@ -196,7 +199,7 @@
   function buildPrimary() {
     const P = DS.primary, x = [], y = [], n = [], col = [];
     NAMES.forEach(name => {
-      const s = geneStats(name), sc = sigClass(s), c = sc === 'up' ? '#e05252' : sc === 'dn' ? '#4a90d9' : '#454b6e';
+      const s = geneStats(name), sc = sigClass(s), c = sc === 'up' ? '#e05252' : sc === 'dn' ? '#4a90d9' : DIM;
       if (P.hasStats) { const d = s.de; if (!d || !(d.padj > 0)) return; x.push(d.lfc); y.push(Math.min(-Math.log10(d.padj), 300)); }
       else { const a = (s.m[P.num] + s.m[P.den]) / 2; if (!(a > 1)) return; x.push(Math.log2(a + 1)); y.push(s.lfcP); }
       n.push(name); col.push(c);
@@ -220,18 +223,18 @@
       const s = geneStats(current); let px = null, py = null;
       if (P.hasStats) { if (s.de) { px = s.de.lfc; py = Math.min(-Math.log10(s.de.padj), 300); } }
       else { px = Math.log2((s.m[P.num] + s.m[P.den]) / 2 + 1); py = s.lfcP; }
-      if (px !== null) t.push({ type: 'scatter', mode: 'markers+text', x: [px], y: [py], text: [current], textposition: 'top center', textfont: { color: '#f5c842', size: 13 }, marker: { color: '#f5c842', size: 14, line: { width: 2, color: '#000' } }, hoverinfo: 'skip', customdata: [current] });
+      if (px !== null) t.push({ type: 'scatter', mode: 'markers+text', x: [px], y: [py], text: [current], textposition: 'top center', textfont: { color: ACCENT, size: 13 }, marker: { color: ACCENT, size: 14, line: { width: 2, color: '#fff' } }, hoverinfo: 'skip', customdata: [current] });
     }
     const lay = Object.assign({}, PLOT, { showlegend: false, margin: { t: 20, r: 20, b: 55, l: 65 }, hovermode: 'closest' });
     if (P.hasStats) {
-      lay.xaxis = { title: `log₂ fold change (${P.numShort} ÷ ${P.denShort})`, gridcolor: '#2a3052', zerolinecolor: '#666' };
-      lay.yaxis = { title: '−log₁₀ adjusted p-value (confidence)', gridcolor: '#2a3052' };
+      lay.xaxis = { title: `log₂ fold change (${P.numShort} ÷ ${P.denShort})`, gridcolor: GRID, zerolinecolor: ZERO };
+      lay.yaxis = { title: '−log₁₀ adjusted p-value (confidence)', gridcolor: GRID };
       lay.shapes = [{ type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 1.301, y1: 1.301, line: { color: '#fff', dash: 'dash', width: 1 } },
         { type: 'line', x0: 1, x1: 1, y0: 0, y1: 1, yref: 'paper', line: { color: '#e05252', dash: 'dot', width: 1 } },
         { type: 'line', x0: -1, x1: -1, y0: 0, y1: 1, yref: 'paper', line: { color: '#4a90d9', dash: 'dot', width: 1 } }];
     } else {
-      lay.xaxis = { title: 'log₂ average expression (how strongly the gene is on)', gridcolor: '#2a3052' };
-      lay.yaxis = { title: `log₂ fold change (${P.numShort} ÷ ${P.denShort})`, gridcolor: '#2a3052', zerolinecolor: '#666' };
+      lay.xaxis = { title: 'log₂ average expression (how strongly the gene is on)', gridcolor: GRID };
+      lay.yaxis = { title: `log₂ fold change (${P.numShort} ÷ ${P.denShort})`, gridcolor: GRID, zerolinecolor: ZERO };
       lay.shapes = [{ type: 'line', x0: 0, x1: 1, xref: 'paper', y0: EXPL_CUT, y1: EXPL_CUT, line: { color: '#e05252', dash: 'dot', width: 1 } },
         { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: -EXPL_CUT, y1: -EXPL_CUT, line: { color: '#4a90d9', dash: 'dot', width: 1 } }];
     }
@@ -245,20 +248,20 @@
     sec.classList.remove('hidden'); nav.classList.remove('hidden');
     $('sec-title').textContent = S.title; $('sec-note').innerHTML = S.warn || '';
     const P = DS.primary, x = [], y = [], n = [], col = [];
-    NAMES.forEach(name => { const s = geneStats(name); if (!(s.m[P.num] > 2 || s.m[P.den] > 2 || s.m[S.num] > 2)) return; x.push(s.lfcP); y.push(s.lfcS); n.push(name); col.push(s.lfcP > EXPL_CUT ? '#e05252' : s.lfcP < -EXPL_CUT ? '#4a90d9' : '#454b6e'); });
+    NAMES.forEach(name => { const s = geneStats(name); if (!(s.m[P.num] > 2 || s.m[P.den] > 2 || s.m[S.num] > 2)) return; x.push(s.lfcP); y.push(s.lfcS); n.push(name); col.push(s.lfcP > EXPL_CUT ? '#e05252' : s.lfcP < -EXPL_CUT ? '#4a90d9' : DIM); });
     SEC = { x, y, n, col }; drawSecondary();
     if (!handlersAttached) { $('sec-plot').on('plotly_click', e => { const p = e.points && e.points[0]; if (p && p.customdata) showGene(p.customdata, true); }); }
   }
   function drawSecondary() {
     if (!SEC || !DS.secondary) return; const P = DS.primary, S = DS.secondary;
     const t = [{ type: 'scattergl', mode: 'markers', x: SEC.x, y: SEC.y, text: SEC.n, customdata: SEC.n, hovertemplate: `<b>%{text}</b><br>${P.numShort} log₂FC %{x:.2f}<br>${S.numShort} log₂FC %{y:.2f}<extra></extra>`, marker: { color: SEC.col, size: 5, opacity: .65 } }];
-    if (current) { const s = geneStats(current); t.push({ type: 'scatter', mode: 'markers+text', x: [s.lfcP], y: [s.lfcS], text: [current], textposition: 'top center', textfont: { color: '#f5c842', size: 13 }, marker: { color: '#f5c842', size: 14, line: { width: 2, color: '#000' } }, hoverinfo: 'skip', customdata: [current] }); }
+    if (current) { const s = geneStats(current); t.push({ type: 'scatter', mode: 'markers+text', x: [s.lfcP], y: [s.lfcS], text: [current], textposition: 'top center', textfont: { color: ACCENT, size: 13 }, marker: { color: ACCENT, size: 14, line: { width: 2, color: '#fff' } }, hoverinfo: 'skip', customdata: [current] }); }
     Plotly.react('sec-plot', t, Object.assign({}, PLOT, {
-      xaxis: { title: `${P.numShort} vs ${P.denShort} (log₂FC)`, gridcolor: '#2a3052', zerolinecolor: '#666' },
-      yaxis: { title: `${S.numShort} vs ${S.denShort} (log₂FC)`, gridcolor: '#2a3052', zerolinecolor: '#666' },
+      xaxis: { title: `${P.numShort} vs ${P.denShort} (log₂FC)`, gridcolor: GRID, zerolinecolor: ZERO },
+      yaxis: { title: `${S.numShort} vs ${S.denShort} (log₂FC)`, gridcolor: GRID, zerolinecolor: ZERO },
       showlegend: false, margin: { t: 20, r: 20, b: 55, l: 65 }, hovermode: 'closest',
-      shapes: [{ type: 'line', x0: -7, x1: 9, y0: -7, y1: 9, line: { color: 'rgba(245,200,66,.45)', dash: 'dash', width: 1.5 } }],
-      annotations: [{ text: 'same effect in both', x: 6.2, y: 6.9, showarrow: false, font: { color: 'rgba(245,200,66,.7)', size: 11 }, textangle: -36 }]
+      shapes: [{ type: 'line', x0: -7, x1: 9, y0: -7, y1: 9, line: { color: 'rgba(111,66,193,.45)', dash: 'dash', width: 1.5 } }],
+      annotations: [{ text: 'same effect in both', x: 6.2, y: 6.9, showarrow: false, font: { color: CSSV('--accent-soft'), size: 11 }, textangle: -36 }]
     }), CFG);
   }
 
@@ -365,7 +368,7 @@
     const node = g.append('g').selectAll('circle').data(nodes).join('circle')
       .attr('r', d => 5 + Math.sqrt(d.d) * 2.4)
       .attr('fill', d => d.lfc > 0 ? '#e05252' : '#4a90d9').attr('fill-opacity', .9)
-      .attr('stroke', '#0f1220').attr('stroke-width', 1.5).style('cursor', 'pointer')
+      .attr('stroke', CSSV('--s1')).attr('stroke-width', 1.5).style('cursor', 'pointer')
       .call(d3.drag()
         .on('start', (e, d) => { if (!e.active) sim.alphaTarget(.3).restart(); d.fx = d.x; d.fy = d.y; })
         .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
@@ -376,7 +379,7 @@
       .on('click', (e, d) => { const n = resolveName(d.id); if (n) pick(n); });
     const lbl = g.append('g').selectAll('text').data(nodes).join('text')
       .text(d => d.id).attr('font-size', d => Math.min(12, 8 + Math.sqrt(d.d)))
-      .attr('fill', d => d.d >= 4 ? '#e4e7f7' : '#8a90b3').attr('font-family', 'Inter,sans-serif')
+      .attr('fill', d => d.d >= 4 ? CSSV('--text') : CSSV('--muted')).attr('font-family', 'Inter,sans-serif')
       .attr('dx', d => 7 + Math.sqrt(d.d) * 2.4).attr('dy', 4).style('pointer-events', 'none');
     sim.on('tick', () => {
       link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
@@ -504,13 +507,13 @@
     const lim = Math.max(2, Math.min(9, Math.ceil(Math.max(
       ...cc.points.map(r => Math.abs(r.you)).filter(isFinite).sort((a, b) => b - a).slice(0, 20),
       ...cc.points.map(r => Math.abs(r.pub)).filter(isFinite).sort((a, b) => b - a).slice(0, 20)))));
-    Plotly.react('cc-plot', [mk(rest, 'other genes', '#454b6e', 4, .45), mk(sig, 'significant in published', '#f5c842', 5, .75)],
+    Plotly.react('cc-plot', [mk(rest, 'other genes', DIM, 4, .45), mk(sig, 'significant in published', ACCENT, 5, .75)],
       Object.assign({}, PLOT, {
-        xaxis: { title: (isUp ? 'YOUR' : 'BACKUP DATA') + ' log₂ fold change', gridcolor: '#2a3052', zerolinecolor: '#888', range: [-lim, lim] },
-        yaxis: { title: 'PUBLISHED log₂ fold change', gridcolor: '#2a3052', zerolinecolor: '#888', range: [-lim, lim] },
+        xaxis: { title: (isUp ? 'YOUR' : 'BACKUP DATA') + ' log₂ fold change', gridcolor: GRID, zerolinecolor: ZERO, range: [-lim, lim] },
+        yaxis: { title: 'PUBLISHED log₂ fold change', gridcolor: GRID, zerolinecolor: ZERO, range: [-lim, lim] },
         margin: { t: 16, r: 20, b: 55, l: 65 }, hovermode: 'closest',
         legend: { bgcolor: 'rgba(0,0,0,0)', y: 1.08, orientation: 'h' },
-        shapes: [{ type: 'line', x0: -lim, y0: -lim, x1: lim, y1: lim, line: { color: 'rgba(245,200,66,.5)', dash: 'dash', width: 1.5 } }],
+        shapes: [{ type: 'line', x0: -lim, y0: -lim, x1: lim, y1: lim, line: { color: 'rgba(111,66,193,.5)', dash: 'dash', width: 1.5 } }],
       }), CFG);
     if (!$('cc-plot').__wired) { $('cc-plot').on('plotly_click', e => { const p = e.points && e.points[0]; if (p && p.customdata) showGene(p.customdata, true); }); $('cc-plot').__wired = 1; }
 
@@ -541,10 +544,10 @@
       colr = '#00b894'; head = 'Strong agreement with the published study.';
       body = MINE_CAP + ' fold changes track theirs closely (correlation ' + r.toFixed(2) + ', ' + pct(d) + ' the same direction on their significant genes), and the top-changing genes overlap theirs about ' + cc.enrich.toFixed(0) + '× more than chance would give. Two independent experiments finding the same thing is far stronger evidence than either alone.';
     } else if (r >= 0.25 || d >= 0.65) {
-      colr = '#f5c842'; head = 'Moderate agreement: the broad story matches, the details are noisy.';
+      colr = ACCENT; head = 'Moderate agreement: the broad story matches, the details are noisy.';
       body = 'Correlation is ' + r.toFixed(2) + ' with ' + pct(d) + ' directional agreement on their significant genes, and the top genes overlap theirs ' + cc.enrich.toFixed(1) + '× more than chance. That pattern usually means ' + (isUp ? 'your experiment is' : 'this experiment was') + ' measuring the same biology but with fewer replicates or less depth, so only the largest changes come through clearly. Trust the strongest hits; treat the absence of a gene as "not enough evidence" rather than "no change".';
     } else {
-      colr = '#8a90b3'; head = 'Little agreement with this particular study.';
+      colr = CSSV('--muted'); head = 'Little agreement with this particular study.';
       body = 'Correlation is ' + (isNaN(r) ? 'not estimable' : r.toFixed(2)) + ' and directional agreement is ' + pct(d) + ', close to a coin flip. That is entirely expected if ' + (isUp ? 'your experiment asks' : 'the experiment asked') + ' a different question: a different treatment, cell type or timepoint. It only counts as a problem if the aim was to reproduce this specific differentiation experiment.';
     }
     $('cc-verdict').innerHTML = '<div class="verdict" style="border-color:' + colr + '"><strong>' + head + '</strong> ' + body + '</div>';
