@@ -29,6 +29,7 @@
   <p class="lead" id="ds-tagline"></p>
   <div class="chips" id="ds-chips"><span class="hint" style="align-self:center">Choose a dataset:</span></div>
   <div class="card" style="margin-top:14px">
+    <div class="note" id="ds-caution"></div>
     <div class="cond-legend" id="cond-legend"></div>
     <div class="grid3" style="margin-top:8px">
       <div class="stat"><div class="v" id="s-genes">-</div><div class="l">genes you can look up</div></div>
@@ -123,6 +124,8 @@
       <div class="toolbar" style="margin-top:10px">
         <label><input type="checkbox" id="up-iscpm"> values are already CPM (don't rescale)</label>
         <label><input type="checkbox" id="up-pconly" checked> keep protein-coding genes only (if the file says)</label>
+        <label><input type="checkbox" id="up-borrow"> one condition only: compare against the published study. Mine are
+          <select id="up-borrow-side" class="btn" style="padding:3px 8px;font-size:12px"><option value="dif">differentiated</option><option value="undiff">undifferentiated</option></select></label>
       </div>
       <button class="btn primary" id="up-run" disabled>Run analysis →</button>
       <button class="btn" id="up-export" disabled style="margin-left:8px">⬇ Export results (CSV)</button>

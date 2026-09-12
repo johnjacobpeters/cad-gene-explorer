@@ -71,6 +71,7 @@
   }
   function renderIntro() {
     $('ds-title').textContent = DS.title; $('ds-tagline').textContent = DS.tagline || '';
+    const cau = $('ds-caution'); if (cau) cau.innerHTML = DS.caution || '';
     $('cond-legend').innerHTML = CONDS.map(c => `<span title="${esc(c.desc || '')}"><i style="background:${c.color}"></i>${esc(c.label)} <span class="hint">(n=${c.n})</span></span>`).join('');
     $('s-genes').textContent = DS.summary.nGenes.toLocaleString();
     const upTile = $('s-up').closest('.stat'), dnTile = $('s-dn').closest('.stat');
@@ -163,7 +164,7 @@
       : P.hasStats
       ? (s.de ? `${P.statsName} (${P.label}): log₂FC ${s.de.lfc > 0 ? '+' : ''}${s.de.lfc.toFixed(2)}, adjusted p = ${fmtP(s.de.padj)}, average expression ${s.de.bm.toFixed(0)}` : 'This gene had too few reads to be tested statistically.')
       : `${P.label}: log₂FC ${s.lfcP > 0 ? '+' : ''}${s.lfcP.toFixed(2)}, descriptive only (one dish per condition, no statistical test).`;
-    $('g-cards').innerHTML = CONDS.map(c => { const k = NOREP() ? c.n : (s.g.cpm[c.id] || []).length; return `<div class="stat" style="border-top-color:${c.color}"><div class="v">${fmtN(s.m[c.id])}</div><div class="l">${esc(c.short)} · ${esc(UNIT())}<br><span style="text-transform:none;letter-spacing:0">${k} dish${k === 1 ? '' : 'es'}${NOREP() ? ' (est.)' : ''}</span></div></div>`; }).join('');
+    $('g-cards').innerHTML = CONDS.map(c => { const k = (NOREP() || c.noDots) ? c.n : (s.g.cpm[c.id] || []).length; return `<div class="stat" style="border-top-color:${c.color}"><div class="v">${fmtN(s.m[c.id])}</div><div class="l">${esc(c.short)} · ${esc(UNIT())}<br><span style="text-transform:none;letter-spacing:0">${k} dish${k === 1 ? '' : 'es'}${(NOREP() || c.noDots) ? ' (est.)' : ''}</span></div></div>`; }).join('');
     $('g-cards').className = 'cond-cards ' + (CONDS.length <= 3 ? 'grid3' : 'grid5');
     renderGeneChart(s); $('g-verdict').innerHTML = verdict(s);
     $('g-link').textContent = location.href.split('#')[0] + '#ds=' + DS.id + '&gene=' + n;
@@ -172,11 +173,12 @@
   }
   function renderGeneChart(s) {
     const xs = [], ys = [], cols = [], txt = [], U = UNIT();
-    if (!NOREP()) CONDS.forEach((c, i) => { const arr = s.g.cpm[c.id] || []; arr.forEach((v, j) => { xs.push(i + (j - (arr.length - 1) / 2) * 0.14); ys.push(v); cols.push(c.color); txt.push(`${c.label} · dish ${j + 1}<br>${v.toFixed(1)} ${U}`); }); });
+    if (!NOREP()) CONDS.forEach((c, i) => { if (c.noDots) return; const arr = s.g.cpm[c.id] || []; arr.forEach((v, j) => { xs.push(i + (j - (arr.length - 1) / 2) * 0.14); ys.push(v); cols.push(c.color); txt.push(`${c.label} · dish ${j + 1}<br>${v.toFixed(1)} ${U}`); }); });
     const traces = [{ type: 'bar', x: CONDS.map((c, i) => i), y: CONDS.map(c => s.m[c.id]), marker: { color: CONDS.map(c => c.color), opacity: NOREP() ? .75 : .45 }, name: NOREP() ? 'group average' : 'average', hovertemplate: 'average %{y:.1f} ' + U + '<extra></extra>', width: .6 }];
     if (!NOREP()) traces.push({ type: 'scatter', mode: 'markers', x: xs, y: ys, text: txt, hoverinfo: 'text', marker: { color: cols, size: 12, line: { width: 2, color: CSSV('--s1') } }, name: 'each dish' });
     const note = $('chart-note'); if (note) note.innerHTML = NOREP()
       ? 'Bars are <strong>group averages reconstructed</strong> from the published summary table. The individual dish values were not deposited, so no dots are shown.'
+      : CONDS.some(c => c.noDots) ? 'Dots are your individual dishes. The published bar is a reconstructed group mean, so it has no dots.'
       : 'Bars = average · dots = each individual dish (replicate)';
     Plotly.react('gene-chart', traces, Object.assign({}, PLOT, {
       xaxis: { tickvals: CONDS.map((c, i) => i), ticktext: CONDS.map(c => c.label), gridcolor: GRID, range: [-0.6, CONDS.length - 0.4] },
@@ -458,7 +460,7 @@
 
   function renderCrossCheck() {
     const sec = $('crosscheck'), nav = $('nav-crosscheck');
-    const show = DS && !DS.singleGroup && (DS.id === 'upload' || DS.id === 'lab');
+    const show = DS && !DS.singleGroup && !DS.borrowed && (DS.id === 'upload' || DS.id === 'lab');
     sec.classList.toggle('hidden', !show); if (nav) nav.classList.toggle('hidden', !show);
     if (!show) return;
     const pct = v => isNaN(v) ? '-' : (100 * v).toFixed(0) + '%';
@@ -601,6 +603,8 @@
   function renderUpSamples() {
     const g = guessGroups(UP.samples);
     $('up-nameA').value = cap(g.names[0]); if (g.names[1]) $('up-nameB').value = cap(g.names[1]);
+    const sideSel = $('up-borrow-side');
+    if (sideSel) { const nm0 = (g.names[0] || '').toLowerCase(); sideSel.value = STARTS.test(nm0) || /^und/.test(nm0) ? 'undiff' : 'dif'; }
     $('up-samples').innerHTML = UP.samples.map((s, i) => `<tr><td class="mono">${esc(s.name)}</td><td class="mono hint">${fmtTotal(s.total)}</td><td><select class="btn up-grp" data-i="${i}" style="padding:4px 8px"><option value="A" ${g.groups[i] === 'A' ? 'selected' : ''}>A · undifferentiated (starting point)</option><option value="B" ${g.groups[i] === 'B' ? 'selected' : ''}>B · differentiated (compared against A)</option><option value="X">ignore</option></select></td></tr>`).join('');
     $('up-run').disabled = false;
   }
@@ -642,6 +646,86 @@
       if (!byName[g.name] || byName[g.name].tot < tot) byName[g.name] = { a, b, tot };
     });
     const names = Object.keys(byName); if (names.length < 50) throw new Error('Fewer than 50 expressed genes found. Is the first column the gene name and the others numeric?');
+    if (single && $('up-borrow') && $('up-borrow').checked) {
+      // Only one condition came back, so borrow the other half from the published study.
+      // The published values are DESeq2 normalised counts summing to ~3e7, while the upload is
+      // CPM summing to 1e6, so both sides are rescaled to per-million before anything is compared.
+      const pub = DATASETS.find(d => d.id === 'cevallos');
+      if (!pub) throw new Error('The published dataset is not loaded, so there is nothing to borrow from.');
+      const mineIsDiff = $('up-borrow-side').value === 'dif';
+      const pubCond = mineIsDiff ? 'undiff' : 'dif';
+      let pubTot = 0;
+      Object.keys(pub.genes).forEach(n => { const v = pub.genes[n].cpm[pubCond]; if (v && v.length) pubTot += mean(v); });
+      if (!(pubTot > 0)) throw new Error('Could not read the published condition needed for this comparison.');
+      const pubScale = 1e6 / pubTot;
+      const useB0 = !A.length, idx0 = useB0 ? B : A, myName = useB0 ? nameB : nameA;
+      const pubName = 'Published ' + (mineIsDiff ? 'undifferentiated' : 'differentiated');
+      // Rebuild without the single-condition expression floor. A gene that is off in the
+      // uploaded condition can still be high in the published one: Id3 sits at ~0.2 CPM in
+      // differentiated cells precisely because it was switched off, and dropping it would
+      // hide the headline result of the experiment.
+      const rawMine = {};
+      UP.genes.forEach(g => {
+        if (pcOnly && !g.pc) return;
+        const vals = idx0.map(i => +(g.vals[i] * scale[i]).toFixed(3));
+        const tot = vals.reduce((x, y) => x + y, 0);
+        if (!rawMine[g.name] || rawMine[g.name].tot < tot) rawMine[g.name] = { vals, tot };
+      });
+      const genesB = {}, sharedB = [];
+      Object.keys(rawMine).forEach(n => {
+        const pg = pub.genes[n]; if (!pg) return;
+        const pv = pg.cpm[pubCond]; if (!pv || !pv.length) return;
+        const mineVals = rawMine[n].vals, pubVal = +(mean(pv) * pubScale).toFixed(3);
+        if (Math.max(...mineVals, pubVal) <= 1) return;   // off on both sides: nothing to see
+        genesB[n] = { cpm: { mine: mineVals, pub: [pubVal] } };
+        sharedB.push(n);
+      });
+      if (sharedB.length < 50) throw new Error('Only ' + sharedB.length + ' of your genes matched the published dataset by name, which is too few to compare. Gene symbols (Id3) are needed, not IDs like ENSMUSG.');
+      const numId = mineIsDiff ? 'mine' : 'pub', denId = mineIsDiff ? 'pub' : 'mine';
+      const numLbl = mineIsDiff ? myName : pubName, denLbl = mineIsDiff ? pubName : myName;
+      const rankedB = sharedB.map(n => {
+        const g = genesB[n];
+        return { n, l: lfc(mean(g.cpm[numId]), mean(g.cpm[denId])), bm: mean(g.cpm.mine.concat(g.cpm.pub)) };
+      });
+      const wellB = rankedB.filter(r => r.bm >= 20 && Math.abs(r.l) > EXPL_CUT);
+      const upB = wellB.filter(r => r.l > 0).sort((p, q) => q.l - p.l).slice(0, 25).map(r => r.n);
+      const dnB = wellB.filter(r => r.l < 0).sort((p, q) => p.l - q.l).slice(0, 25).map(r => r.n);
+      const setsB = [{ title: 'Top genes up in ' + numLbl, desc: '', genes: upB },
+                     { title: 'Top genes down in ' + numLbl, desc: '', genes: dnB }];
+      const hkB = HK.filter(h => genesB[h]);
+      if (hkB.length) setsB.push({ title: 'Housekeeping genes', desc: '', genes: hkB });
+      const dsB = {
+        id: 'upload', borrowed: true, simulated: /SIMULATED/i.test(UP.fname || ''),
+        chipLabel: '② ' + (UP.fname.length > 22 ? UP.fname.slice(0, 20) + '…' : UP.fname),
+        title: 'Your data vs the published study',
+        tagline: `${UP.fname} · ${idx0.length} sample${idx0.length === 1 ? '' : 's'} · ${sharedB.length.toLocaleString()} shared genes · both sides rescaled to counts per million`,
+        intro: '',
+        caution: '<strong>Cross-study comparison.</strong> Only one of your conditions was uploaded, so the other half comes from Cevallos et al. '
+          + 'Different lab, different library prep and different normalisation, so part of any difference is technical rather than biological. '
+          + 'Large, consistent changes are still meaningful; small ones are not. There are no p-values, and the published cross-check is switched off because this comparison already uses that data.',
+        conditions: [
+          { id: 'mine', label: myName, short: myName, color: '#7E57C2', n: idx0.length, desc: 'Your uploaded samples' },
+          { id: 'pub', label: pubName, short: pubName, color: '#20C997', n: 3, noDots: true, desc: 'Reconstructed group mean from Cevallos et al. 2025' },
+        ],
+        primary: { num: numId, den: denId, numShort: numLbl, denShort: denLbl,
+                   label: numLbl + ' vs ' + denLbl, hasStats: false, statsName: '', statsNote: '' },
+        secondary: null, genes: genesB, sets: setsB, top: { up: upB, down: dnB },
+        summary: {
+          nGenes: sharedB.length,
+          nUp: rankedB.filter(r => r.l > EXPL_CUT).length,
+          nDn: rankedB.filter(r => r.l < -EXPL_CUT).length,
+          upLabel: `genes > ${fold(EXPL_CUT).toFixed(1)}× higher in ${numLbl}`,
+          dnLabel: `genes > ${fold(EXPL_CUT).toFixed(1)}× lower in ${numLbl}`,
+        },
+        quick: upB.slice(0, 4).concat(dnB.slice(0, 4)),
+      };
+      const kB = DATASETS.findIndex(d => d.id === 'upload');
+      if (kB >= 0) DATASETS[kB] = dsB; else DATASETS.push(dsB);
+      $('up-export').disabled = false;
+      $('up-status').innerHTML += ` <strong style="color:var(--green)">Compared against the published study: ${sharedB.length.toLocaleString()} shared genes.</strong>`;
+      activate(dsB); $('datasets').scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
     if (single) {
       // Only one condition was uploaded, so there is nothing to compare against. Build a
       // browse-only dataset: expression levels, ranked themes, gene lookup. No fold change.
@@ -712,9 +796,10 @@
       const a0 = document.createElement('a'); a0.href = u0; a0.download = 'expression_' + nm + '.csv';
       document.body.appendChild(a0); a0.click(); a0.remove(); URL.revokeObjectURL(u0); return;
     }
-    const A = ds.conditions[0].label, B = ds.conditions[1].label, st = ds.primary.hasStats;
+    const cA = ds.conditions[0], cB = ds.conditions[1], st = ds.primary.hasStats;
+    const A = cA.label, B = cB.label;
     const lines = [['gene', 'mean_' + A + '_CPM', 'mean_' + B + '_CPM', 'log2FC'].concat(st ? ['p_value', 'adj_p_value'] : []).join(',')];
-    Object.keys(ds.genes).forEach(n => { const g = ds.genes[n], a = mean(g.cpm.A), b = mean(g.cpm.B), l = g.de ? g.de.lfc : lfc(b, a); lines.push([n, a.toFixed(2), b.toFixed(2), l.toFixed(3)].concat(st ? [g.de.p, g.de.padj] : []).join(',')); });
+    Object.keys(ds.genes).forEach(n => { const g = ds.genes[n], a = mean(g.cpm[cA.id]), b = mean(g.cpm[cB.id]), l = g.de ? g.de.lfc : lfc(b, a); lines.push([n, a.toFixed(2), b.toFixed(2), l.toFixed(3)].concat(st ? [g.de.p, g.de.padj] : []).join(',')); });
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' }), u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = 'results_' + B + '_vs_' + A + '.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u);
   });
 
