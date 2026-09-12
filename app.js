@@ -21,6 +21,7 @@
   let EXPL_CUT = 1.5;     // |log2FC| threshold when there are no statistics (per-dataset)
   const UNIT = () => (DS && DS.unit) || 'CPM';        // expression unit label (per-dataset)
   const NOREP = () => !!(DS && DS.noReplicateData);   // true when only group summaries are available
+  const SINGLE = () => !!(DS && DS.singleGroup);      // one condition only: nothing to compare against
 
   const DATASETS = ROOT.datasets.slice();
   let DS = null, CONDS = [], CMAP = {}, GENES = {}, NAMES = [], LOWER = [];
@@ -35,7 +36,15 @@
     $('gene-panel').classList.add('hidden'); $('gene-empty').classList.remove('hidden');
     $('gene-empty').innerHTML = 'Search for a gene above, click a chip, or pick a random one to get started.';
     $('theme-panel').classList.add('hidden');
-    buildPrimary(); buildSecondary(); renderCrossCheck();
+    const navBig = document.querySelector('nav a[href="#primary-sec"], nav a[href="#big"]');
+    if (SINGLE()) {
+      $('primary-sec').hidden = true; $('compare').classList.add('hidden');
+      if (navBig) navBig.hidden = true;
+    } else {
+      $('primary-sec').hidden = false; if (navBig) navBig.hidden = false;
+      buildPrimary(); buildSecondary();
+    }
+    renderCrossCheck();
     updateHash();
     if (gene) showGene(gene, false);
   }
@@ -64,6 +73,8 @@
     $('ds-title').textContent = DS.title; $('ds-tagline').textContent = DS.tagline || '';
     $('cond-legend').innerHTML = CONDS.map(c => `<span title="${esc(c.desc || '')}"><i style="background:${c.color}"></i>${esc(c.label)} <span class="hint">(n=${c.n})</span></span>`).join('');
     $('s-genes').textContent = DS.summary.nGenes.toLocaleString();
+    const upTile = $('s-up').closest('.stat'), dnTile = $('s-dn').closest('.stat');
+    if (upTile) upTile.hidden = SINGLE(); if (dnTile) dnTile.hidden = SINGLE();
     $('s-up').textContent = DS.summary.nUp.toLocaleString(); $('s-dn').textContent = DS.summary.nDn.toLocaleString();
     $('s-up-l').textContent = DS.summary.upLabel; $('s-dn-l').textContent = DS.summary.dnLabel;
   }
@@ -131,7 +142,10 @@
     $('gene-empty').classList.add('hidden'); $('gene-panel').classList.remove('hidden');
     $('g-name').textContent = n;
     const sc = sigClass(s), badges = [];
-    if (P.hasStats) {
+    if (SINGLE()) {
+      const v = s.m[P.num];
+      badges.push(`<span class="pill ${v >= 100 ? 'pill-up' : v >= 10 ? 'pill-purple' : 'pill-ns'}">${fmtN(v)} ${esc(UNIT())}</span>`);
+    } else if (P.hasStats) {
       if (sc === 'up') badges.push(`<span class="pill pill-up">↑ ${fmtX(s.de.lfc)} up in ${esc(P.numShort)}</span>`);
       if (sc === 'dn') badges.push(`<span class="pill pill-dn">↓ ${fmtX(s.de.lfc)} down in ${esc(P.numShort)}</span>`);
       if (sc === 'ns' && s.de) badges.push(`<span class="pill pill-ns">not significantly changed</span>`);
@@ -144,7 +158,9 @@
     if (S && Math.abs(s.lfcS) > EXPL_CUT) badges.push(`<span class="pill pill-new">${s.lfcS > 0 ? '↑' : '↓'} ${fmtX(s.lfcS)} in ${esc(S.numShort)} (1 sample)</span>`);
     DS.sets.forEach(st => { if (st.genes.includes(n)) badges.push(`<span class="pill pill-purple">${esc(st.title.split(': ')[0])}</span>`); });
     $('g-badges').innerHTML = badges.join(' ');
-    $('g-sub').textContent = P.hasStats
+    $('g-sub').textContent = SINGLE()
+      ? `${esc(P.numShort)}: ${fmtN(s.m[P.num])} ${UNIT()} across ${(s.g.cpm[P.num] || []).length} sample(s). One condition only, so there is nothing to compare against.`
+      : P.hasStats
       ? (s.de ? `${P.statsName} (${P.label}): log₂FC ${s.de.lfc > 0 ? '+' : ''}${s.de.lfc.toFixed(2)}, adjusted p = ${fmtP(s.de.padj)}, average expression ${s.de.bm.toFixed(0)}` : 'This gene had too few reads to be tested statistically.')
       : `${P.label}: log₂FC ${s.lfcP > 0 ? '+' : ''}${s.lfcP.toFixed(2)}, descriptive only (one dish per condition, no statistical test).`;
     $('g-cards').innerHTML = CONDS.map(c => { const k = NOREP() ? c.n : (s.g.cpm[c.id] || []).length; return `<div class="stat" style="border-top-color:${c.color}"><div class="v">${fmtN(s.m[c.id])}</div><div class="l">${esc(c.short)} · ${esc(UNIT())}<br><span style="text-transform:none;letter-spacing:0">${k} dish${k === 1 ? '' : 'es'}${NOREP() ? ' (est.)' : ''}</span></div></div>`; }).join('');
@@ -170,6 +186,14 @@
   }
   function verdict(s) {
     const P = DS.primary, S = DS.secondary, out = [];
+    if (SINGLE()) {
+      const v = s.m[P.num];
+      const level = v >= 100 ? 'Strongly expressed.' : v >= 10 ? 'Moderately expressed.'
+                  : v >= 1 ? 'Weakly expressed.' : 'Essentially off.';
+      return '<div class="verdict" style="border-color:var(--muted)"><strong>' + fmtN(v) + ' ' + esc(UNIT())
+        + '</strong> in ' + esc(P.numShort) + '. ' + level
+        + ' With one condition there is no fold change and no statistical test.</div>';
+    }
     const den = s.m[P.den], num = s.m[P.num], nd = CMAP[P.den], nn = CMAP[P.num];
     if (P.hasStats) {
       if (s.de && s.de.padj < 0.05 && Math.abs(s.de.lfc) > 1) {
@@ -273,6 +297,17 @@
   function renderTheme(set) {
     const P = DS.primary, S = DS.secondary;
     $('theme-panel').classList.remove('hidden'); $('theme-title').textContent = set.title;
+    if (SINGLE()) {
+      $('theme-head').innerHTML = `<th>Gene</th><th>${esc(CMAP[P.num].short)}</th><th>Level</th>`;
+      $('theme-tbody').innerHTML = set.genes.filter(g => GENES[g]).map(g => {
+        const v = geneStats(g).m[P.num];
+        const lab = v >= 100 ? '<span class="pill pill-up">high</span>' : v >= 10 ? '<span class="pill pill-purple">moderate</span>' : v >= 1 ? '<span class="pill pill-ns">low</span>' : '<span class="pill pill-ns">off</span>';
+        return `<tr class="rowlink" data-g="${esc(g)}"><td class="mono" style="font-weight:600">${esc(g)}</td><td class="mono">${fmtN(v)}</td><td>${lab}</td></tr>`;
+      }).join('');
+      $('theme-tbody').querySelectorAll('tr').forEach(r => r.addEventListener('click', () => pick(r.dataset.g)));
+      const tf0 = document.getElementById('theme-foot'); if (tf0) tf0.textContent = 'Average ' + UNIT();
+      return;
+    }
     $('theme-head').innerHTML = `<th>Gene</th><th>${esc(CMAP[P.den].short)}</th><th>${esc(CMAP[P.num].short)}</th>${S ? `<th>${esc(CMAP[S.num].short)}</th>` : ''}<th>${esc(P.numShort)} vs ${esc(P.denShort)}</th>${S ? `<th>${esc(S.numShort)} vs ${esc(S.denShort)}</th>` : ''}<th>Verdict</th>`;
     $('theme-tbody').innerHTML = set.genes.filter(g => GENES[g]).map(g => {
       const s = geneStats(g), sc = sigClass(s);
@@ -303,13 +338,12 @@
     const has = !!(DS.enrich && ((DS.enrich.up || []).length || (DS.enrich.dn || []).length));
     sec.classList.toggle('hidden', !has);
     if (navP) navP.classList.toggle('hidden', !has);
-    if (!has) { $('string-wrap').classList.add('hidden'); return; }
+    if (!has) return;
     const P = DS.primary;
     $('enr-up-btn').textContent = '↑ Up in ' + P.numShort;
     $('enr-dn-btn').textContent = '↓ Down in ' + P.numShort;
     $('enr-how').textContent = DS.enrich.how || '';
     switchEnr('up');
-    drawString();
   }
 
   function drawEnr() {
@@ -341,51 +375,6 @@
       const n = resolveName(el.dataset.g) || resolveName(el.dataset.g.charAt(0) + el.dataset.g.slice(1).toLowerCase());
       if (n) pick(n); else showNotFound(el.dataset.g);
     }));
-  }
-
-  function drawString() {
-    const wrap = $('string-wrap'), st = DS.enrich && DS.enrich.string;
-    if (!st || !st.nodes || !st.nodes.length) { wrap.classList.add('hidden'); return; }
-    wrap.classList.remove('hidden');
-    const top = (st.enrich || []).slice(0, 3).map(t => t.term).join(' · ');
-    $('string-note').innerHTML = st.nodes.length + ' proteins, ' + st.links.length
-      + ' known interactions (STRING confidence &ge; 0.4). Strongest shared themes: <strong>' + esc(top) + '</strong>.';
-    const svg = d3.select('#string-svg'); svg.selectAll('*').remove();
-    const W = $('string-svg').clientWidth || 900, H = 520;
-    svg.attr('viewBox', '0 0 ' + W + ' ' + H);
-    const g = svg.append('g');
-    svg.call(d3.zoom().scaleExtent([.3, 5]).on('zoom', e => g.attr('transform', e.transform)));
-    const nodes = st.nodes.map(n => Object.assign({}, n));
-    const links = st.links.map(l => ({ source: l.s, target: l.t, w: l.w }));
-    const sim = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(60).strength(.45))
-      .force('charge', d3.forceManyBody().strength(-130))
-      .force('center', d3.forceCenter(W / 2, H / 2))
-      .force('collide', d3.forceCollide().radius(d => 8 + Math.sqrt(d.d) * 3));
-    const link = g.append('g').selectAll('line').data(links).join('line')
-      .attr('stroke', '#3a4166').attr('stroke-opacity', .65).attr('stroke-width', d => Math.max(.7, d.w * 2));
-    const tip = document.querySelector('.net-tip') || (() => { const t = document.createElement('div'); t.className = 'net-tip'; document.body.appendChild(t); return t; })();
-    const node = g.append('g').selectAll('circle').data(nodes).join('circle')
-      .attr('r', d => 5 + Math.sqrt(d.d) * 2.4)
-      .attr('fill', d => d.lfc > 0 ? '#e05252' : '#4a90d9').attr('fill-opacity', .9)
-      .attr('stroke', CSSV('--s1')).attr('stroke-width', 1.5).style('cursor', 'pointer')
-      .call(d3.drag()
-        .on('start', (e, d) => { if (!e.active) sim.alphaTarget(.3).restart(); d.fx = d.x; d.fy = d.y; })
-        .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
-        .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }))
-      .on('mouseover', (e, d) => { tip.style.opacity = 1; tip.innerHTML = '<strong>' + d.id + '</strong><br>' + d.d + ' connections<br>log₂FC ' + (d.lfc > 0 ? '+' : '') + d.lfc.toFixed(2); })
-      .on('mousemove', e => { tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY - 10) + 'px'; })
-      .on('mouseout', () => { tip.style.opacity = 0; })
-      .on('click', (e, d) => { const n = resolveName(d.id); if (n) pick(n); });
-    const lbl = g.append('g').selectAll('text').data(nodes).join('text')
-      .text(d => d.id).attr('font-size', d => Math.min(12, 8 + Math.sqrt(d.d)))
-      .attr('fill', d => d.d >= 4 ? CSSV('--text') : CSSV('--muted')).attr('font-family', 'Inter,sans-serif')
-      .attr('dx', d => 7 + Math.sqrt(d.d) * 2.4).attr('dy', 4).style('pointer-events', 'none');
-    sim.on('tick', () => {
-      link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-      node.attr('cx', d => d.x).attr('cy', d => d.y);
-      lbl.attr('x', d => d.x).attr('y', d => d.y);
-    });
   }
 
   // ── cross-check an uploaded dataset against the published study ────────────
@@ -469,7 +458,7 @@
 
   function renderCrossCheck() {
     const sec = $('crosscheck'), nav = $('nav-crosscheck');
-    const show = DS && (DS.id === 'upload' || DS.id === 'lab');
+    const show = DS && !DS.singleGroup && (DS.id === 'upload' || DS.id === 'lab');
     sec.classList.toggle('hidden', !show); if (nav) nav.classList.toggle('hidden', !show);
     if (!show) return;
     const pct = v => isNaN(v) ? '-' : (100 * v).toFixed(0) + '%';
@@ -577,7 +566,7 @@
         sampleIdx = header.map((h, i) => i).filter(i => lower[i].endsWith('_count'));
       }
     }
-    if (sampleIdx.length < 2) throw new Error('Could not find at least two numeric sample columns. Check that the first row is a header and the other columns are numbers.');
+    if (sampleIdx.length < 1) throw new Error('Could not find a numeric sample column. Check that the first row is a header and the other columns are numbers.');
     const samples = sampleIdx.map(i => ({ name: header[i].replace(/_(cpm|count)$/i, ''), col: i, total: 0 }));
     const genes = [];
     rows.forEach(r => {
@@ -597,6 +586,10 @@
   function guessGroups(samples) {
     const base = s => s.name.replace(/[-_ ]?(rep|r|s|sample)?\d+$/i, '').replace(/\d+$/, '').toLowerCase();
     const bases = samples.map(base); let uniq = Array.from(new Set(bases));
+    if (uniq.length === 1 && (STARTS.test(uniq[0]) || ENDS.test(uniq[0]))) {
+      // only one condition survived (e.g. the undifferentiated run failed): do not split it in two
+      return { groups: bases.map(() => 'A'), names: [LONG[uniq[0]] || uniq[0], ''] };
+    }
     if (uniq.length === 2) {
       if (ENDS.test(uniq[0]) && STARTS.test(uniq[1])) uniq = [uniq[1], uniq[0]];
       return { groups: bases.map(b => b === uniq[0] ? 'A' : 'B'),
@@ -607,7 +600,7 @@
   }
   function renderUpSamples() {
     const g = guessGroups(UP.samples);
-    $('up-nameA').value = cap(g.names[0]); $('up-nameB').value = cap(g.names[1]);
+    $('up-nameA').value = cap(g.names[0]); if (g.names[1]) $('up-nameB').value = cap(g.names[1]);
     $('up-samples').innerHTML = UP.samples.map((s, i) => `<tr><td class="mono">${esc(s.name)}</td><td class="mono hint">${fmtTotal(s.total)}</td><td><select class="btn up-grp" data-i="${i}" style="padding:4px 8px"><option value="A" ${g.groups[i] === 'A' ? 'selected' : ''}>A · undifferentiated (starting point)</option><option value="B" ${g.groups[i] === 'B' ? 'selected' : ''}>B · differentiated (compared against A)</option><option value="X">ignore</option></select></td></tr>`).join('');
     $('up-run').disabled = false;
   }
@@ -634,7 +627,8 @@
     if (!UP) return;
     const grp = Array.from(document.querySelectorAll('.up-grp')).map(s => s.value);
     const A = [], B = []; grp.forEach((g, i) => { if (g === 'A') A.push(i); else if (g === 'B') B.push(i); });
-    if (!A.length || !B.length) throw new Error('Assign at least one sample to each group.');
+    if (!A.length && !B.length) throw new Error('Assign at least one sample to a group.');
+    const single = !A.length || !B.length;
     const nameA = $('up-nameA').value.trim() || 'Undifferentiated', nameB = $('up-nameB').value.trim() || 'Differentiated';
     const isCpm = $('up-iscpm').checked, pcOnly = $('up-pconly').checked && UP.hasBiotype;
     const scale = UP.samples.map(s => isCpm ? 1 : (s.total > 0 ? 1e6 / s.total : 0));
@@ -648,6 +642,39 @@
       if (!byName[g.name] || byName[g.name].tot < tot) byName[g.name] = { a, b, tot };
     });
     const names = Object.keys(byName); if (names.length < 50) throw new Error('Fewer than 50 expressed genes found. Is the first column the gene name and the others numeric?');
+    if (single) {
+      // Only one condition was uploaded, so there is nothing to compare against. Build a
+      // browse-only dataset: expression levels, ranked themes, gene lookup. No fold change.
+      const useB = !A.length, idx = useB ? B : A, nm = useB ? nameB : nameA;
+      const genes1 = {}, ranked1 = [];
+      names.forEach(n => {
+        const vals = useB ? byName[n].b : byName[n].a;
+        genes1[n] = { cpm: { A: vals } };
+        ranked1.push({ n, v: mean(vals) });
+      });
+      ranked1.sort((p, q) => q.v - p.v);
+      const sets1 = [{ title: 'Highest expressed genes', desc: '', genes: ranked1.slice(0, 25).map(r => r.n) }];
+      const hk1 = HK.filter(h => genes1[h]);
+      if (hk1.length) sets1.push({ title: 'Housekeeping genes', desc: '', genes: hk1 });
+      const ds1 = {
+        id: 'upload', singleGroup: true, simulated: /SIMULATED/i.test(UP.fname || ''),
+        chipLabel: '② ' + (UP.fname.length > 22 ? UP.fname.slice(0, 20) + '…' : UP.fname),
+        title: 'Your data: ' + nm,
+        tagline: `${UP.fname} · ${idx.length} sample${idx.length === 1 ? '' : 's'} · ${names.length.toLocaleString()} expressed genes · one condition only`,
+        intro: '',
+        conditions: [{ id: 'A', label: nm, short: nm, color: '#7E57C2', n: idx.length, desc: 'Uploaded samples' }],
+        primary: { num: 'A', den: 'A', numShort: nm, denShort: nm, label: nm, hasStats: false, statsName: '', statsNote: '' },
+        secondary: null, genes: genes1, sets: sets1, top: { up: [], down: [] },
+        summary: { nGenes: names.length, nUp: 0, nDn: 0, upLabel: '', dnLabel: '' },
+        quick: ranked1.slice(0, 8).map(r => r.n),
+      };
+      const k = DATASETS.findIndex(d => d.id === 'upload');
+      if (k >= 0) DATASETS[k] = ds1; else DATASETS.push(ds1);
+      $('up-export').disabled = false;
+      $('up-status').innerHTML += ` <strong style="color:var(--green)">Loaded ${names.length.toLocaleString()} genes in one condition.</strong> No comparison is possible, so the plots and the published cross-check are hidden.`;
+      activate(ds1); $('datasets').scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
     const hasStats = A.length >= 2 && B.length >= 2;
     const genes = {}, pvals = [];
     names.forEach(n => { const r = byName[n]; genes[n] = { cpm: { A: r.a, B: r.b } }; if (hasStats) { const p = welch(r.a.map(v => Math.log2(v + 1)), r.b.map(v => Math.log2(v + 1))); pvals.push([n, p, lfc(mean(r.b), mean(r.a)), mean(r.a.concat(r.b))]); } });
@@ -677,6 +704,14 @@
   }
   $('up-export').addEventListener('click', () => {
     const ds = DATASETS.find(d => d.id === 'upload'); if (!ds) return;
+    if (ds.singleGroup) {
+      const nm = ds.conditions[0].label;
+      const rows = [['gene', 'mean_' + nm + '_CPM'].join(',')];
+      Object.keys(ds.genes).forEach(n => rows.push([n, mean(ds.genes[n].cpm.A).toFixed(2)].join(',')));
+      const blob0 = new Blob([rows.join('\n')], { type: 'text/csv' }), u0 = URL.createObjectURL(blob0);
+      const a0 = document.createElement('a'); a0.href = u0; a0.download = 'expression_' + nm + '.csv';
+      document.body.appendChild(a0); a0.click(); a0.remove(); URL.revokeObjectURL(u0); return;
+    }
     const A = ds.conditions[0].label, B = ds.conditions[1].label, st = ds.primary.hasStats;
     const lines = [['gene', 'mean_' + A + '_CPM', 'mean_' + B + '_CPM', 'log2FC'].concat(st ? ['p_value', 'adj_p_value'] : []).join(',')];
     Object.keys(ds.genes).forEach(n => { const g = ds.genes[n], a = mean(g.cpm.A), b = mean(g.cpm.B), l = g.de ? g.de.lfc : lfc(b, a); lines.push([n, a.toFixed(2), b.toFixed(2), l.toFixed(3)].concat(st ? [g.de.p, g.de.padj] : []).join(',')); });
