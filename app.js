@@ -34,7 +34,7 @@
     current = null; inp.value = '';
     renderDsChips(); renderIntro(); renderQuick(); renderThemeChips(); renderPathways();
     $('gene-panel').classList.add('hidden'); $('gene-empty').classList.remove('hidden');
-    $('gene-empty').innerHTML = 'Search for a gene above, click a chip, or pick a random one to get started.';
+    $('gene-empty').innerHTML = 'Search for a gene.';
     $('theme-panel').classList.add('hidden');
     const navBig = document.querySelector('nav a[href="#primary-sec"], nav a[href="#big"]');
     if (SINGLE()) {
@@ -160,7 +160,7 @@
     DS.sets.forEach(st => { if (st.genes.includes(n)) badges.push(`<span class="pill pill-purple">${esc(st.title.split(': ')[0])}</span>`); });
     $('g-badges').innerHTML = badges.join(' ');
     $('g-sub').textContent = SINGLE()
-      ? `${esc(P.numShort)}: ${fmtN(s.m[P.num])} ${UNIT()} across ${(s.g.cpm[P.num] || []).length} sample(s). One condition only, so there is nothing to compare against.`
+      ? `${esc(P.numShort)}: ${fmtN(s.m[P.num])} ${UNIT()} across ${(s.g.cpm[P.num] || []).length} sample${(s.g.cpm[P.num] || []).length === 1 ? '' : 's'}.`
       : P.hasStats
       ? (s.de ? `${P.statsName} (${P.label}): log₂FC ${s.de.lfc > 0 ? '+' : ''}${s.de.lfc.toFixed(2)}, adjusted p = ${fmtP(s.de.padj)}, average expression ${s.de.bm.toFixed(0)}` : 'This gene had too few reads to be tested statistically.')
       : `${P.label}: log₂FC ${s.lfcP > 0 ? '+' : ''}${s.lfcP.toFixed(2)}, descriptive only (one dish per condition, no statistical test).`;
@@ -177,8 +177,8 @@
     const traces = [{ type: 'bar', x: CONDS.map((c, i) => i), y: CONDS.map(c => s.m[c.id]), marker: { color: CONDS.map(c => c.color), opacity: NOREP() ? .75 : .45 }, name: NOREP() ? 'group average' : 'average', hovertemplate: 'average %{y:.1f} ' + U + '<extra></extra>', width: .6 }];
     if (!NOREP()) traces.push({ type: 'scatter', mode: 'markers', x: xs, y: ys, text: txt, hoverinfo: 'text', marker: { color: cols, size: 12, line: { width: 2, color: CSSV('--s1') } }, name: 'each dish' });
     const note = $('chart-note'); if (note) note.innerHTML = NOREP()
-      ? 'Bars are <strong>group averages reconstructed</strong> from the published summary table. The individual dish values were not deposited, so no dots are shown.'
-      : CONDS.some(c => c.noDots) ? 'Dots are your individual dishes. The published bar is a reconstructed group mean, so it has no dots.'
+      ? 'Bars are <strong>reconstructed group means</strong>. Individual dish values were never published, so there are no dots.'
+      : CONDS.some(c => c.noDots) ? 'Dots are your dishes. The published bar is a reconstructed mean, so it has none.'
       : 'Bars = average · dots = each individual dish (replicate)';
     Plotly.react('gene-chart', traces, Object.assign({}, PLOT, {
       xaxis: { tickvals: CONDS.map((c, i) => i), ticktext: CONDS.map(c => c.label), gridcolor: GRID, range: [-0.6, CONDS.length - 0.4] },
@@ -194,7 +194,7 @@
                   : v >= 1 ? 'Weakly expressed.' : 'Essentially off.';
       return '<div class="verdict" style="border-color:var(--muted)"><strong>' + fmtN(v) + ' ' + esc(UNIT())
         + '</strong> in ' + esc(P.numShort) + '. ' + level
-        + ' With one condition there is no fold change and no statistical test.</div>';
+        + '</div>';
     }
     const den = s.m[P.den], num = s.m[P.num], nd = CMAP[P.den], nn = CMAP[P.num];
     if (P.hasStats) {
@@ -501,14 +501,12 @@
     const pct = v => isNaN(v) ? '-' : (100 * v).toFixed(0) + '%';
 
     const simWarn = DS.simulated
-      ? '<strong>⚠ This is the simulated practice file.</strong> It was generated from the published study\u2019s own numbers, '
-        + 'so it matches by construction. That shows the comparison working, not a real replication. '
+      ? '<strong>⚠ Simulated practice file.</strong> It was built from the published numbers, so it matches by construction. '
       : '';
     $('cc-caveat').innerHTML = simWarn + (DS.borrowed
-      ? 'This compares your samples against the published <strong>' + esc(sameCond === 'dif' ? 'differentiated' : 'undifferentiated')
-        + '</strong> data, which is the half that was <em>not</em> borrowed, so the two are independent. '
-        + 'A fold-change correlation is not shown: it would share a denominator with the borrowed half and agree with itself.'
-      : 'Expression levels in your samples against the matching published condition. Both sides are counts per million.');
+      ? 'Your samples against the published <strong>' + esc(sameCond === 'dif' ? 'differentiated' : 'undifferentiated')
+        + '</strong> data, the half that was not borrowed. A fold-change correlation would agree with itself, so levels are compared instead.'
+      : 'Expression levels against the matching published condition, both as counts per million.');
     $('cc-stats').innerHTML = [
       ['color:var(--gold)', isNaN(r) ? '-' : r.toFixed(2), 'correlation of expression<br>(log scale)'],
       ['color:var(--green)', pct(within), 'genes within 2×<br>of the published level'],
@@ -546,16 +544,15 @@
     let colr, head, body;
     if (r >= 0.8 && within >= 0.6) {
       colr = 'var(--green)'; head = 'Your sample looks like the published one.';
-      body = 'Correlation ' + r.toFixed(2) + ' across ' + rows.length.toLocaleString() + ' genes, with ' + pct(within)
-        + ' within 2× of the published level. The sequencing produced a profile consistent with an independent lab.';
+      body = 'Correlation ' + r.toFixed(2) + ' across ' + rows.length.toLocaleString() + ' genes, ' + pct(within) + ' within 2×.';
     } else if (r >= 0.6) {
       colr = 'var(--gold)'; head = 'Broadly similar, with real differences.';
-      body = 'Correlation ' + r.toFixed(2) + ', ' + pct(within) + ' within 2×. The overall profile matches, but a fair number of genes sit well off the line. '
-        + 'Expect some of that from a different lab and library prep; large systematic gaps are worth a look.';
+      body = 'Correlation ' + r.toFixed(2) + ', ' + pct(within) + ' within 2×. The overall profile matches, but a fair number of genes sit off the line. '
+        + 'Some of that is expected from a different lab. Large systematic gaps are worth a look.';
     } else {
       colr = 'var(--muted)'; head = 'The profiles do not match closely.';
-      body = 'Correlation ' + (isNaN(r) ? 'not estimable' : r.toFixed(2)) + ' with only ' + pct(within) + ' within 2×. '
-        + 'That can mean a different cell state, a technical problem with the run, or gene names that did not line up.';
+      body = 'Correlation ' + (isNaN(r) ? 'not estimable' : r.toFixed(2)) + ', only ' + pct(within) + ' within 2×. '
+        + 'That can mean a different cell state, a problem with the run, or gene names that did not line up.';
     }
     $('cc-verdict').innerHTML = '<div class="verdict" style="border-color:' + colr + '"><strong>' + head + '</strong> ' + body + '</div>';
   }
@@ -584,7 +581,7 @@
       $('cc-markers').innerHTML = ''; $('cc-verdict').innerHTML = ''; Plotly.purge('cc-plot'); return;
     }
     $('cc-caveat').innerHTML = DS.simulated
-      ? '<strong>⚠ This file is the simulated practice dataset.</strong> It was generated <em>from</em> the published study\'s own numbers, so it will match almost perfectly by construction. That is circular: it shows the comparison working, not a real replication. Upload genuine data to get a meaningful answer.'
+      ? '<strong>⚠ Simulated practice file.</strong> It was built from the published numbers, so it matches by construction.'
       : '';
     $('cc-stats').innerHTML = [
       ['color:var(--gold)', isNaN(cc.rSig) ? (isNaN(cc.rAll) ? '-' : cc.rAll.toFixed(2)) : cc.rSig.toFixed(2),
@@ -728,7 +725,8 @@
     UP = parseTable(text); UP.fname = fname;
     const sums = UP.samples.map(s => s.total), looksCpm = UP.isCpmCols || sums.every(t => t > 0.85e6 && t < 1.15e6);
     $('up-iscpm').checked = looksCpm;
-    $('up-status').innerHTML = `Loaded <strong>${esc(fname)}</strong>: ${UP.samples.length} samples, ${UP.genes.length.toLocaleString()} genes${UP.hasBiotype ? ' (biotype column found)' : ''}. Values look like <strong>${looksCpm ? 'CPM' : 'raw counts'}</strong>.`;
+    UP.loadMsg = `Loaded <strong>${esc(fname)}</strong>: ${UP.samples.length} sample${UP.samples.length === 1 ? '' : 's'}, ${UP.genes.length.toLocaleString()} genes${UP.hasBiotype ? ' (biotype column found)' : ''}. Values look like <strong>${looksCpm ? 'CPM' : 'raw counts'}</strong>.`;
+    $('up-status').innerHTML = UP.loadMsg;
     renderUpSamples();
   }
   $('up-run').addEventListener('click', () => { try { runUpload(); } catch (err) { $('up-status').innerHTML = '<span style="color:var(--red)">' + esc(err.message) + '</span>'; } });
@@ -807,9 +805,7 @@
         title: 'Your data vs the published study',
         tagline: `${UP.fname} · ${idx0.length} sample${idx0.length === 1 ? '' : 's'} · ${sharedB.length.toLocaleString()} shared genes · both sides rescaled to counts per million`,
         intro: '',
-        caution: '<strong>Cross-study comparison.</strong> Only one of your conditions was uploaded, so the other half comes from Cevallos et al. '
-          + 'Different lab, different library prep and different normalisation, so part of any difference is technical rather than biological. '
-          + 'Large, consistent changes are still meaningful; small ones are not. There are no p-values, and the published cross-check is switched off because this comparison already uses that data.',
+        caution: '<strong>Cross-study comparison.</strong> Only one of your conditions was uploaded, so the other half comes from Cevallos et al.',
         conditions: [
           { id: 'mine', label: myName, short: myName, color: '#7E57C2', n: idx0.length, desc: 'Your uploaded samples' },
           { id: 'pub', label: pubName, short: pubName, color: '#20C997', n: 3, noDots: true, desc: 'Reconstructed group mean from Cevallos et al. 2025' },
@@ -829,7 +825,7 @@
       const kB = DATASETS.findIndex(d => d.id === 'upload');
       if (kB >= 0) DATASETS[kB] = dsB; else DATASETS.push(dsB);
       $('up-export').disabled = false;
-      $('up-status').innerHTML += ` <strong style="color:var(--green)">Compared against the published study: ${sharedB.length.toLocaleString()} shared genes.</strong>`;
+      $('up-status').innerHTML = (UP.loadMsg || '') + ` <strong style="color:var(--green)">Compared against the published study: ${sharedB.length.toLocaleString()} shared genes.</strong>`;
       activate(dsB); $('datasets').scrollIntoView({ behavior: 'smooth' });
       return;
     }
@@ -864,7 +860,7 @@
       const k = DATASETS.findIndex(d => d.id === 'upload');
       if (k >= 0) DATASETS[k] = ds1; else DATASETS.push(ds1);
       $('up-export').disabled = false;
-      $('up-status').innerHTML += ` <strong style="color:var(--green)">Loaded ${names.length.toLocaleString()} genes in one condition.</strong> No comparison is possible, so the plots and the published cross-check are hidden.`;
+      $('up-status').innerHTML = (UP.loadMsg || '') + ` <strong style="color:var(--green)">${names.length.toLocaleString()} genes in one condition.</strong>`;
       activate(ds1); $('datasets').scrollIntoView({ behavior: 'smooth' });
       return;
     }
@@ -879,7 +875,7 @@
     const nUp = ranked.filter(r => r.sig && r.l > 0).length, nDn = ranked.filter(r => r.sig && r.l < 0).length;
     const sets = [{ title: `Top genes up in ${nameB}`, desc: `The 25 most-increased well-expressed genes (${hasStats ? 'significant, ' : ''}average CPM ≥ 20).`, genes: topUp },
                   { title: `Top genes down in ${nameB}`, desc: `The 25 most-decreased well-expressed genes.`, genes: topDn }];
-    const hk = HK.filter(h => genes[h]); if (hk.length) sets.push({ title: 'Housekeeping genes: a built-in health check', desc: 'Genes every cell needs all the time. If these move a lot, either the cells are in serious trouble or something technical went wrong.', genes: hk });
+    const hk = HK.filter(h => genes[h]); if (hk.length) sets.push({ title: 'Housekeeping genes: a built-in health check', desc: 'Genes every cell needs all the time. Big moves usually mean something technical.', genes: hk });
     const ds = {
       id: 'upload', simulated: /SIMULATED/i.test(UP.fname || ''),
       chipLabel: '② ' + (UP.fname.length > 22 ? UP.fname.slice(0, 20) + '…' : UP.fname), title: 'Your data: ' + nameB + ' vs ' + nameA,
@@ -892,7 +888,7 @@
       quick: topUp.slice(0, 4).concat(topDn.slice(0, 4)),
     };
     const idx = DATASETS.findIndex(d => d.id === 'upload'); if (idx >= 0) DATASETS[idx] = ds; else DATASETS.push(ds);
-    $('up-export').disabled = false; $('up-status').innerHTML += ` <strong style="color:var(--green)">Analysis done: ${nUp} up, ${nDn} down.</strong> Scroll up: the explorer now shows your data.`;
+    $('up-export').disabled = false; $('up-status').innerHTML = (UP.loadMsg || '') + ` <strong style="color:var(--green)">Analysis done: ${nUp} up, ${nDn} down.</strong>`;
     activate(ds); $('datasets').scrollIntoView({ behavior: 'smooth' });
   }
   $('up-export').addEventListener('click', () => {

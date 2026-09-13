@@ -64,7 +64,7 @@ sets1 = keep_sets(SETS1, genes1, 'lab')
 DS1 = {
  'id':'lab', 'chipLabel':'③ Backup data (1 dish each)',
  'title':'Backup data: what happens when a cell becomes a neuron?',
- 'tagline':'Backup data · mouse CAD cells · undifferentiated vs differentiated · 1 dish each · descriptive comparison (no statistics)',
+ 'tagline':'Backup data · mouse CAD cells · 1 dish each · no statistics',
  'intro':'',
  'conditions': [
    {'id':'undiff','label':'Undifferentiated','short':'Undiff','color':'#a78bfa','n':1,'desc':'CAD cells growing in serum, dividing and immature.'},
@@ -126,7 +126,7 @@ sets2 = keep_sets(SETS2, genes2, 'cevallos')
 DS2 = {
  'id':'cevallos', 'chipLabel':'① Published study (n=3 each)',
  'title':'The same experiment, published: Cevallos et al. 2025',
- 'tagline':'Mouse CAD cells · undifferentiated vs differentiated · 3 dishes each · DESeq2 results from GEO GSE291553',
+ 'tagline':'Mouse CAD cells · 3 dishes each · DESeq2 from GEO GSE291553',
  'intro':'',
  'conditions': [
    {'id':'undiff','label':'Undifferentiated','short':'Undiff','color':'#a78bfa','n':3,'desc':'CAD cells in serum, dividing. 3 dishes.'},
